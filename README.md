@@ -1,20 +1,94 @@
-# helper-async [![NPM version](https://badge.fury.io/js/helper-async.svg)](http://badge.fury.io/js/helper-async)
+# async-helpers [![NPM version](https://badge.fury.io/js/async-helpers.svg)](http://badge.fury.io/js/async-helpers)  [![Build Status](https://travis-ci.org/doowb/async-helpers.svg)](https://travis-ci.org/doowb/async-helpers) 
 
 > Use async helpers in template engines like Handlebars and Lodash.
 
 ## Install with [npm](npmjs.org)
 
 ```bash
-npm i helper-async --save
+npm i async-helpers --save
 ```
 
 ## Usage
 
 ```js
-var helperAsync = require('helper-async');
+var helperAsync = require('async-helpers');
 ```
 
 ## API
+### [HelperAsync](./index.js#L25)
+
+Create a new instance of Helper Async
+
+* `returns` **{Object}**: new HelperAsync instance  
+
+```js
+var helperAsync = new HelperAsync();
+```
+
+### [.set](./index.js#L45)
+
+Add a helper to the cache.
+
+* `name` **{String}**: Name of the helper    
+* `fn` **{Function}**: Helper function    
+* `returns` **{Object}**: Returns `this` for chaining  
+
+```js
+helperAsync.set('upper', function (str, done) {
+  done(null, str.toUpperCase());
+});
+```
+
+### [.get](./index.js#L65)
+
+Get all helpers or a helper with the given name.
+
+* `name` **{String}**: Optionally pass in a name of a helper to get.    
+* `options` **{Object}**: Additional options to use.    
+* `returns` **{Function|Object}**: Single helper function when `name` is provided, otherwise object of all helpers  
+
+```js
+var helpers = helperAsync.get();
+var wrappedHelpers = helperAync.get({wrap: true});
+```
+
+### [.wrap](./index.js#L114)
+
+Wrap a helper with async handling capibilities.
+
+* `name` **{String}**: Optionally pass the name of the helper to wrap    
+* `returns` **{Function|Object}**: Single wrapped helper function when `name` is provided, otherwise object of all wrapped helpers.  
+
+```js
+var wrappedHelper = helperAsync.wrap('upper');
+var wrappedHelpers = helperAsync.wrap();
+```
+
+### [.reset](./index.js#L137)
+
+Reset all the stashed helpers.
+
+* `returns` **{Object}**: Returns `this` to enable chaining  
+
+```js
+helperAsync.reset();
+```
+
+### [.resolve](./index.js#L159)
+
+Resolve a stashed helper by the generated id.
+
+* `key` **{String}**: ID generated when from executing a wrapped helper.    
+* `done` **{Function}**: Callback function with the results of executing the async helper.    
+
+```js
+var upper = helperAsync.get('upper', {wrap: true});
+var id = upper('doowb');
+helperAsync.resolve(id, function (err, result) {
+  console.log(result);
+  //=> DOOWB
+});
+```
 
 
 
@@ -27,7 +101,7 @@ npm i -d && npm test
 ```
 
 ## Contributing
-Pull requests and stars are always welcome. For bugs and feature requests, [please create an issue](https://github.com/doowb/helper-async/issues)
+Pull requests and stars are always welcome. For bugs and feature requests, [please create an issue](https://github.com/doowb/async-helpers/issues)
 
 ## Author
 
