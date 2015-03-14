@@ -9,29 +9,30 @@
 
 var async = require('async');
 
-module.exports = HelperAsync;
+module.exports = AsyncHelpers;
 
 /**
- * Create a new instance of Helper Async
+ * Create a new instance of AsyncHelpers
  *
  * ```js
- * var helperAsync = new HelperAsync();
+ * var asyncHelpers = new AsyncHelpers();
  * ```
  *
- * @return {Object} new HelperAsync instance
+ * @return {Object} new AsyncHelpers instance
  * @api public
  */
 
-function HelperAsync () {
+function AsyncHelpers () {
   this._helpers = {};
   this._stash = {};
+  this.count = 0;
 };
 
 /**
  * Add a helper to the cache.
  *
  * ```js
- * helperAsync.set('upper', function (str, done) {
+ * asyncHelpers.set('upper', function (str, done) {
  *   done(null, str.toUpperCase());
  * });
  * ```
@@ -42,7 +43,7 @@ function HelperAsync () {
  * @api public
  */
 
-HelperAsync.prototype.set = function(name, fn) {
+AsyncHelpers.prototype.set = function(name, fn) {
   this._helpers[name] = fn;
   return this;
 };
@@ -51,7 +52,7 @@ HelperAsync.prototype.set = function(name, fn) {
  * Get all helpers or a helper with the given name.
  *
  * ```js
- * var helpers = helperAsync.get();
+ * var helpers = asyncHelpers.get();
  * var wrappedHelpers = helperAync.get({wrap: true});
  * ```
  *
@@ -62,7 +63,7 @@ HelperAsync.prototype.set = function(name, fn) {
  * @api public
  */
 
-HelperAsync.prototype.get = function(name, options) {
+AsyncHelpers.prototype.get = function(name, options) {
   if (typeof name === 'object') {
     options = name;
     name = null;
@@ -80,7 +81,7 @@ function wrapper (name) {
   return function () {
     var obj = {
       name: name,
-      id: '__async__' + Math.random(1000),
+      id: '__async' + (self.count++) + '__',
       fn: self._helpers[name],
       args: [].concat.apply([], arguments),
       argRefs: []
@@ -88,7 +89,7 @@ function wrapper (name) {
 
     // store references to other async helpers
     obj.args.forEach(function (arg, i) {
-      if (typeof arg === 'string' && arg.indexOf('__async__') === 0) {
+      if (typeof arg === 'string' && arg.indexOf('__async') === 0) {
         obj.argRefs.push({arg: arg, idx: i});
       }
     });
@@ -102,8 +103,8 @@ function wrapper (name) {
  * Wrap a helper with async handling capibilities.
  *
  * ```js
- * var wrappedHelper = helperAsync.wrap('upper');
- * var wrappedHelpers = helperAsync.wrap();
+ * var wrappedHelper = asyncHelpers.wrap('upper');
+ * var wrappedHelpers = asyncHelpers.wrap();
  * ```
  *
  * @param  {String} `name` Optionally pass the name of the helper to wrap
@@ -111,7 +112,7 @@ function wrapper (name) {
  * @api public
  */
 
-HelperAsync.prototype.wrap = function(name) {
+AsyncHelpers.prototype.wrap = function(name) {
   var self = this;
   if (name) {
     return wrapper.call(this, name);
@@ -127,14 +128,14 @@ HelperAsync.prototype.wrap = function(name) {
  * Reset all the stashed helpers.
  *
  * ```js
- * helperAsync.reset();
+ * asyncHelpers.reset();
  * ```
  *
  * @return {Object} Returns `this` to enable chaining
  * @api public
  */
 
-HelperAsync.prototype.reset = function() {
+AsyncHelpers.prototype.reset = function() {
   this._stash = {};
   return this;
 };
@@ -143,9 +144,9 @@ HelperAsync.prototype.reset = function() {
  * Resolve a stashed helper by the generated id.
  *
  * ```js
- * var upper = helperAsync.get('upper', {wrap: true});
+ * var upper = asyncHelpers.get('upper', {wrap: true});
  * var id = upper('doowb');
- * helperAsync.resolve(id, function (err, result) {
+ * asyncHelpers.resolve(id, function (err, result) {
  *   console.log(result);
  *   //=> DOOWB
  * });
@@ -156,17 +157,19 @@ HelperAsync.prototype.reset = function() {
  * @api public
  */
 
-HelperAsync.prototype.resolve = function(key, done) {
-  console.log('resolving...', key);
+AsyncHelpers.prototype.resolve = function(key, done) {
   var stashed = this._stash[key];
-  if (!stashed) return done(new Error('Unable to resolve ' + key + '. Not Found'));
-  if (typeof stashed.fn !== 'function') return done(null, stashed.fn);
+  if (!stashed) {
+    return done(new Error('Unable to resolve ' + key + '. Not Found'));
+  }
 
-  console.log('starting');
+  if (typeof stashed.fn !== 'function') {
+    return done(null, stashed.fn);
+  }
+
   var self = this;
   async.series([
     function (next) {
-      console.log('checking argRefs', stashed.argRefs.length);
       if (stashed.argRefs.length > 0) {
         async.each(stashed.argRefs, function (arg, nextArg) {
           self.resolve(arg.arg, function (err, value) {
@@ -180,13 +183,25 @@ HelperAsync.prototype.resolve = function(key, done) {
       }
     },
     function (next) {
-      console.log('resolving', stashed.name, 'with', stashed.args);
+      var called = false;
+      function cb(err, value) {
+        if (!called) {
+          called = true;
+          next(err, value);
+        }
+      }
+
       var res = null;
-      res = stashed.fn.apply(stashed.thisArg, stashed.args.concat(next));
-      if (res) return next(null, res);
+      var args = [].concat.call([], stashed.args);
+      if (stashed.fn.async) {
+        args = args.concat(cb);
+      }
+      res = stashed.fn.apply(stashed.thisArg, args);
+      if (!stashed.fn.async) {
+        return cb(null, res);
+      }
     }
   ], function (err, results) {
-    console.log('done', arguments);
     // update the fn so if it's called again it'll just return the true reults
     stashed.fn = results[1];
     done(err, stashed.fn);
