@@ -1,49 +1,51 @@
 'use strict';
 
-var _ = require('lodash');
 var async = require('async');
 var AsyncHelpers = require('./');
 
+// create a new instance of AsyncHelpers
 var asyncHelpers = new AsyncHelpers();
 
-var helperList = {
-  upper: function (str) {
-    return str.toUpperCase();
-  },
-  lower: function (str, options, done) {
-    if (typeof options === 'function') {
-      done = options;
-      options = {};
-    }
-    done(null, str.toLowerCase());
-  },
-  spacer: function (str, delim, options, done) {
-    if (typeof delim === 'object') {
-      done = options;
-      options = delim;
-      delim = ' ';
-    }
-    if (typeof options === 'function') {
-      done = options;
-      options = {};
-    }
-    if (typeof delim === 'function') {
-      done = delim;
-      delim = '';
-      options = {};
-    }
-    done(null, str.split('').join(delim));
+// some simple sync helpers
+function upper (str) {
+  return str.toUpperCase();
+}
+
+// some simple async helpers
+function lower (str, options, cb) {
+  // handle Handlebars or Lodash templates
+  if (typeof options === 'function') {
+    cb = options;
+    options = {};
   }
-};
-helperList.lower.async = true;
-helperList.spacer.async = true;
+  cb(null, str.toLowerCase());
+}
 
-Object.keys(helperList).forEach(function (key) {
-  asyncHelpers.set(key, helperList[key]);
-});
+function spacer (str, delim, options, cb) {
+  // handle Handlebars or Lodash templates
+  if (typeof delim === 'function') {
+    cb = delim; options = {}; delim = ' ';
+  }
+  if (typeof options === 'function') {
+    cb = options; options = {}; delim = ' ';
+  }
+  cb(null, str.split('').join(delim));
+}
 
+// async helpers must have an `async` property
+lower.async = true;
+spacer.async = true;
+
+// add the helpers to asyncHelpers
+asyncHelpers.set('upper', upper);
+asyncHelpers.set('lower', lower);
+asyncHelpers.set('spacer', spacer);
+
+// pull the helpers back out and wrap them
+// with async handling functionality
 var helpers = asyncHelpers.get({wrap: true});
 
+// using Handlebars, render a template with the helpers
 var Handlebars = require('handlebars');
 var hbs = [
   'input: {{name}}',
@@ -55,6 +57,30 @@ var hbs = [
   'spacer(upper, lower): {{spacer (upper name) (lower "X")}}'
 ].join('\n');
 
+// register the helpers with Handlebars
+Handlebars.registerHelper(helpers);
+
+// compile the template
+var hbsFn = Handlebars.compile(hbs);
+
+// render the template with a simple context object
+var hbsRendered = hbsFn({name: 'brian'});
+
+// rendered output will contain async IDs that need to be replaced
+console.log('Handlebars rendered:');
+console.log(hbsRendered);
+console.log();
+
+resolve(hbsRendered, function (err, rendered) {
+  // show the final rendered output after all async IDs have been resolved
+  console.log('Handlebars resolved');
+  console.log(rendered);
+  console.log();
+});
+
+
+// using Lodash, render a template with helpers
+var _ = require('lodash');
 var lodash = [
   'input: <%= name %>',
   'upper: <%= upper(name) %>',
@@ -65,113 +91,45 @@ var lodash = [
   'spacer(upper, lower): <%= spacer(upper(name), lower("X")) %>'
 ].join('\n');
 
-Handlebars.registerHelper(helpers);
-var hbsFn = Handlebars.compile(hbs);
-var hbsRendered = hbsFn({name: 'brian'});
-console.log('Handlebars rendered:');
-console.log(hbsRendered);
-console.log();
-
-var stashed = asyncHelpers._stash;
-var keys = Object.keys(stashed);
-async.eachSeries(keys, function (key, next) {
-  var i = hbsRendered.indexOf(key);
-  if (i === -1) {
-    return next(null);
-  }
-  asyncHelpers.resolve(key, function (err, value) {
-    if (err) return next(err);
-    hbsRendered = hbsRendered.replace(key, value);
-    next(null);
-  });
-}, function (err) {
-  console.log('Handlebars resolved');
-  console.log(hbsRendered);
-  console.log();
-});
-
+// compile the template passing `helpers` in as `imports`
 var _fn = _.template(lodash, { imports: helpers});
+
+// render the compiled template with the simple context object
 var _rendered = _fn({name: 'brian'});
+
+// rendered output will contain async IDs that need to be replaced
 console.log('lodash rendered:');
 console.log(_rendered);
 console.log();
 
-var stashed = asyncHelpers._stash;
-var keys = Object.keys(stashed);
-async.eachSeries(keys, function (key, next) {
-  var i = _rendered.indexOf(key);
-  if (i === -1) {
-    return next(null);
-  }
-  asyncHelpers.resolve(key, function (err, value) {
-    if (err) return next(err);
-    _rendered = _rendered.replace(key, value);
-    next(null);
-  });
-}, function (err) {
-  console.log('Lodash resolved');
-  console.log(_rendered);
+resolve(_rendered, function (err, rendered) {
+  // show the final rendered output after all async IDs have been resolved
+  console.log('lodash resolved');
+  console.log(rendered);
   console.log();
 });
 
 
-// function run (keys, value) {
-//   keys = Array.isArray(keys) ? keys : [keys];
-//   keys.forEach(function (key) {
-//     value = helpers[key](value);
-//   });
-//   console.log('value', value);
-//   return value;
-// }
-
-// function resolve (id, done) {
-//   asyncHelpers.resolve(id, function (err, results) {
-//     console.log(id, results);
-//     done(err, results);
-//   });
-// }
-
-// var id = run('upper', 'brian');
-// resolve(id, function (err, results) {
-//   console.log();
-
-//   id = run(['upper', 'lower'], 'brian');
-//   resolve(id, function (err, results) {
-//     console.log();
-
-//     id = run(['upper', 'lower'], 'brian');
-//     id = helpers.spacer(id, '-');
-
-//     resolve(id, function (err, results) {
-//       console.log();
-
-//       id = run(['upper', 'lower', 'upper'], 'brian');
-//       resolve(id, function(err, results) {
-//         console.log();
-
-//         var uid = helpers.upper('brian');
-//         var lid = helpers.lower(uid);
-
-//         resolve(uid, function (err, results) {
-//           console.log();
-//           resolve(lid, function (err, results) {
-//             console.log();
-//             resolve(uid, function (err, results) {
-//               console.log();
-//               resolve(lid, function (err, results) {
-//                 console.log();
-//               });
-//             });
-//           });
-//         });
-//       });
-//     });
-//   });
-// });
-
-
-/**
- * ```hbs
- * {{lower (upper "brian")}}
- * ```
- */
+function resolve (rendered, done) {
+  // implementing code can do this piece based on optimizations they want to use.
+  // `_stash` contains the objects created when rendering the template
+  var stashed = asyncHelpers._stash;
+  var keys = Object.keys(stashed);
+  async.eachSeries(keys, function (key, next) {
+    // check to see if the async ID is in the rendered string
+    var i = rendered.indexOf(key);
+    if (i === -1) {
+      // if not go on to the next one
+      return next(null);
+    }
+    asyncHelpers.resolve(key, function (err, value) {
+      if (err) return next(err);
+      // replace the async ID with the resolved value
+      rendered = rendered.replace(key, value);
+      next(null);
+    });
+  }, function (err) {
+    if (err) return done(err);
+    done(null, rendered);
+  });
+}
