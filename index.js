@@ -22,11 +22,26 @@ module.exports = AsyncHelpers;
  * @api public
  */
 
-function AsyncHelpers () {
-  this._helpers = {};
-  this._stash = {};
-  this.count = 0;
+function AsyncHelpers (options) {
+  if (!(this instanceof AsyncHelpers)) {
+    return new AsyncHelpers(options);
+  }
+  options = options || {};
+  this.prefix = options.prefix || '__async_';
+  this.helpers = {};
+  this.stash = {};
+  this.counter = 0;
+  this.globalCounter = AsyncHelpers.globalCounter++;
 };
+
+/**
+ * Keep track of instances created for generating globally
+ * unique ids
+ *
+ * @type {Number}
+ */
+
+AsyncHelpers.globalCounter = 0;
 
 /**
  * Add a helper to the cache.
@@ -44,7 +59,7 @@ function AsyncHelpers () {
  */
 
 AsyncHelpers.prototype.set = function(name, fn) {
-  this._helpers[name] = fn;
+  this.helpers[name] = fn;
   return this;
 };
 
@@ -72,7 +87,7 @@ AsyncHelpers.prototype.get = function(name, options) {
   if (options.wrap) {
     return this.wrap(name);
   }
-  return name == null ? this._helpers : this._helpers[name];
+  return name == null ? this.helpers : this.helpers[name];
 };
 
 
@@ -81,20 +96,20 @@ function wrapper (name) {
   return function () {
     var obj = {
       name: name,
-      id: '__async' + (self.count++) + '__',
-      fn: self._helpers[name],
+      id: self.prefix + self.globalCounter + '_' + (self.counter++) + '__',
+      fn: self.helpers[name],
       args: [].concat.apply([], arguments),
       argRefs: []
     };
 
     // store references to other async helpers
     obj.args.forEach(function (arg, i) {
-      if (typeof arg === 'string' && arg.indexOf('__async') === 0) {
+      if (typeof arg === 'string' && arg.indexOf(self.prefix) === 0) {
         obj.argRefs.push({arg: arg, idx: i});
       }
     });
 
-    self._stash[obj.id] = obj;
+    self.stash[obj.id] = obj;
     return obj.id;
   };
 }
@@ -117,7 +132,7 @@ AsyncHelpers.prototype.wrap = function(name) {
   if (name) {
     return wrapper.call(this, name);
   }
-  var keys = Object.keys(this._helpers);
+  var keys = Object.keys(this.helpers);
   return keys.reduce(function (res, key) {
     res[key] = self.wrap(key);
     return res;
@@ -136,7 +151,8 @@ AsyncHelpers.prototype.wrap = function(name) {
  */
 
 AsyncHelpers.prototype.reset = function() {
-  this._stash = {};
+  this.stash = {};
+  this.counter = 0;
   return this;
 };
 
@@ -158,7 +174,7 @@ AsyncHelpers.prototype.reset = function() {
  */
 
 AsyncHelpers.prototype.resolve = function(key, done) {
-  var stashed = this._stash[key];
+  var stashed = this.stash[key];
   if (!stashed) {
     return done(new Error('Unable to resolve ' + key + '. Not Found'));
   }
