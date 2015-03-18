@@ -199,22 +199,16 @@ AsyncHelpers.prototype.resolve = function(key, done) {
       }
     },
     function (next) {
-      var called = false;
-      function cb(err, value) {
-        if (!called) {
-          called = true;
-          next(err, value);
-        }
-      }
+      next = once(next);
 
       var res = null;
       var args = [].concat.call([], stashed.args);
       if (stashed.fn.async) {
-        args = args.concat(cb);
+        args = args.concat(next);
       }
       res = stashed.fn.apply(stashed.thisArg, args);
       if (!stashed.fn.async) {
-        return cb(null, res);
+        return next(null, res);
       }
     }
   ], function (err, results) {
@@ -224,3 +218,12 @@ AsyncHelpers.prototype.resolve = function(key, done) {
   });
 
 };
+
+function once (fn) {
+  return function () {
+    if (fn.called) return fn.value;
+    fn.called = true;
+    fn.value = fn.apply(fn, arguments);
+    return fn.value;
+  };
+}
