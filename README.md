@@ -11,7 +11,7 @@ npm i async-helpers --save
 ## Usage
 
 ```js
-var helperAsync = require('async-helpers');
+var asyncHelpers = require('async-helpers');
 ```
 
 ## API
