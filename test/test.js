@@ -77,4 +77,28 @@ describe('async-helpers', function () {
     assert.deepEqual(asyncHelpers2.get('upper', { wrap: true })('doowb'), '__custom_prefix__1_0__');
   });
 
+  it('should support helpers that take arrays as an argument', function (done) {
+    var async = require('async');
+    // function to use as an iterator
+    var upper = function (str, next) {
+      next(null, str.toUpperCase());
+    };
+    // use the async mapSeries function for the helper
+    var map = async.mapSeries;
+    // make sure asyncHelpers knows this is an async function
+    map.async = true;
+    asyncHelpers.set('map', map);
+    var helper = asyncHelpers.get('map', {wrap: true});
+
+    // call the helper to get the id
+    var id = helper(['doowb', 'jonschlinkert'], upper);
+    assert.equal(id, '__async_0_0__');
+
+    // resolve the id
+    asyncHelpers.resolve(id, function (err, val) {
+      if (err) return done(err);
+      assert.deepEqual(val, ['DOOWB', 'JONSCHLINKERT']);
+      done();
+    });
+  });
 });

@@ -98,7 +98,7 @@ function wrapper (name) {
       name: name,
       id: self.prefix + self.globalCounter + '_' + (self.counter++) + '__',
       fn: self.helpers[name],
-      args: [].concat.apply([], arguments),
+      args: [].slice.call(arguments),
       argRefs: []
     };
 
