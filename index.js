@@ -90,20 +90,22 @@ AsyncHelpers.prototype.get = function(name, options) {
   return name == null ? this.helpers : this.helpers[name];
 };
 
-
-function wrapper (name) {
+function wrapper(name) {
   var self = this;
+  var helper = this.helpers[name];
+
   return function () {
+    var args = [].slice.call(arguments);
     var obj = {
       name: name,
       id: self.prefix + self.globalCounter + '_' + (self.counter++) + '__',
-      fn: self.helpers[name],
-      args: [].slice.call(arguments),
+      fn: helper,
+      args: args,
       argRefs: []
     };
 
     // store references to other async helpers
-    obj.args.forEach(function (arg, i) {
+    args.forEach(function (arg, i) {
       if (typeof arg === 'string' && arg.indexOf(self.prefix) === 0) {
         obj.argRefs.push({arg: arg, idx: i});
       }
