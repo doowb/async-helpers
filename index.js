@@ -27,7 +27,7 @@ function AsyncHelpers (options) {
     return new AsyncHelpers(options);
   }
   options = options || {};
-  this.prefix = options.prefix || '__async_';
+  this.prefix = options.prefix || '__async';
   this.helpers = {};
   this.stash = {};
   this.counter = 0;
@@ -47,8 +47,8 @@ AsyncHelpers.globalCounter = 0;
  * Add a helper to the cache.
  *
  * ```js
- * asyncHelpers.set('upper', function (str, done) {
- *   done(null, str.toUpperCase());
+ * asyncHelpers.set('upper', function (str, cb) {
+ *   cb(null, str.toUpperCase());
  * });
  * ```
  *
@@ -59,6 +59,9 @@ AsyncHelpers.globalCounter = 0;
  */
 
 AsyncHelpers.prototype.set = function(name, fn) {
+  if (typeof name !== 'string') {
+    throw new TypeError('AsyncHelpers#set expects `name` to be a string.');
+  }
   this.helpers[name] = fn;
   return this;
 };
@@ -78,42 +81,85 @@ AsyncHelpers.prototype.set = function(name, fn) {
  * @api public
  */
 
-AsyncHelpers.prototype.get = function(name, options) {
+AsyncHelpers.prototype.get = function(name, opts) {
+  if (name == null) {
+    throw new TypeError('AsyncHelpers#get expects a string or object.');
+  }
+
   if (typeof name === 'object') {
-    options = name;
+    opts = name;
     name = null;
   }
-  options = options || {};
-  if (options.wrap) {
+
+  opts = opts || {};
+  if (opts.wrap) {
     return this.wrap(name);
   }
-  return name == null ? this.helpers : this.helpers[name];
+
+  return typeof name === 'string'
+    ? this.helpers[name]
+    : this.helpers;
 };
 
-function wrapper(name) {
-  var self = this;
-  var helper = this.helpers[name];
+/**
+ * Wrap a helper or object of helpers with an async handler function.
+ *
+ * @param  {String|Object} `name` Helper or object of helpers
+ * @return {Object} Wrapped helper(s)
+ */
 
-  return function () {
-    var args = [].slice.call(arguments);
+function wrap(name) {
+  if (name == null) {
+    throw new TypeError('async-helpers wrap expects a string or object.');
+  }
+  var helper = this.helpers[name];
+  if (typeof helper === 'object') {
+    for (var key in helper) {
+      helper[key] = wrapper(key, helper[key], this);
+    }
+    return helper;
+  } else {
+    return wrapper(name, helper, this);
+  }
+}
+
+/**
+ * Returns a wrapper function for a single helper.
+ *
+ * @param  {String} `name` The name of the helper
+ * @param  {Function} `fn` The actual helper function
+ * @param  {Object} `thisArg` Context
+ * @return {String} Returns an async ID to use for resolving the value. ex: `__async18__`
+ */
+
+function wrapper(name, fn, thisArg) {
+  return function() {
+    var argRefs = [];
+    var len = arguments.length;
+    var args = new Array(len);
+
+    for (var i = len - 1; i >= 0; i--) {
+      var arg = args[i] = arguments[i];
+
+      // store references to other async helpers
+      if (typeof arg === 'string' && arg.indexOf(thisArg.prefix) === 0) {
+        argRefs.push({arg: arg, idx: i});
+      }
+    }
+
+    // generate a unique ID for the wrapped helper
+    var id = thisArg.prefix + thisArg.globalCounter + (thisArg.counter++) + '__';
     var obj = {
+      id: id,
       name: name,
-      id: self.prefix + self.globalCounter + '_' + (self.counter++) + '__',
-      fn: helper,
+      fn: fn,
       args: args,
-      argRefs: []
+      argRefs: argRefs
     };
 
-    // store references to other async helpers
-    args.forEach(function (arg, i) {
-      if (typeof arg === 'string' && arg.indexOf(self.prefix) === 0) {
-        obj.argRefs.push({arg: arg, idx: i});
-      }
-    });
-
-    self.stash[obj.id] = obj;
+    thisArg.stash[obj.id] = obj;
     return obj.id;
-  };
+  }
 }
 
 /**
@@ -130,15 +176,13 @@ function wrapper(name) {
  */
 
 AsyncHelpers.prototype.wrap = function(name) {
-  var self = this;
-  if (name) {
-    return wrapper.call(this, name);
+  if (name) return wrap.call(this, name);
+
+  var res = {};
+  for (var key in this.helpers) {
+    res[key] = this.wrap(key);
   }
-  var keys = Object.keys(this.helpers);
-  return keys.reduce(function (res, key) {
-    res[key] = self.wrap(key);
-    return res;
-  }, {});
+  return res;
 };
 
 /**
@@ -171,18 +215,26 @@ AsyncHelpers.prototype.reset = function() {
  * ```
  *
  * @param  {String} `key` ID generated when from executing a wrapped helper.
- * @param  {Function} `done` Callback function with the results of executing the async helper.
+ * @param  {Function} `cb` Callback function with the results of executing the async helper.
  * @api public
  */
 
-AsyncHelpers.prototype.resolve = function(key, done) {
+AsyncHelpers.prototype.resolve = function(key, cb) {
+  if (typeof cb !== 'function') {
+    throw new Error('AsyncHelpers#resolve() expects a callback function.');
+  }
+
+  if (typeof key !== 'string') {
+    cb(new Error('AsyncHelpers#resolve() expects `key` to be a string.'));
+  }
+
   var stashed = this.stash[key];
   if (!stashed) {
-    return done(new Error('Unable to resolve ' + key + '. Not Found'));
+    return cb(new Error('Unable to resolve ' + key + '. Not Found'));
   }
 
   if (typeof stashed.fn !== 'function') {
-    return done(null, stashed.fn);
+    return cb(null, stashed.fn);
   }
 
   var self = this;
@@ -202,9 +254,8 @@ AsyncHelpers.prototype.resolve = function(key, done) {
     },
     function (next) {
       next = once(next);
-
       var res = null;
-      var args = [].concat.call([], stashed.args);
+      var args = stashed.args;
       if (stashed.fn.async) {
         args = args.concat(next);
       }
@@ -214,9 +265,9 @@ AsyncHelpers.prototype.resolve = function(key, done) {
       }
     }
   ], function (err, results) {
-    // update the fn so if it's called again it'll just return the true reults
+    // update the fn so if it's called again it'll just return the true results
     stashed.fn = results[1];
-    done(err, stashed.fn);
+    cb(err, stashed.fn);
   });
 
 };
