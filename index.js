@@ -265,9 +265,13 @@ AsyncHelpers.prototype.resolve = function(key, cb) {
       }
     }
   ], function (err, results) {
-    // update the fn so if it's called again it'll just return the true results
-    stashed.fn = results[1];
-    cb(err, stashed.fn);
+    if (typeof results[1] !== 'undefined') {
+      // update the fn so if it's called again it'll just return the true results
+      stashed.fn = results[1];
+      return cb(err, stashed.fn);
+    } else {
+      return cb(err, '');
+    }
   });
 
 };
