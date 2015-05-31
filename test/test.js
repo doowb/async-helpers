@@ -102,4 +102,32 @@ describe('async-helpers', function () {
       done();
     });
   });
+
+  it ('should handle errors in sync helpers', function (done) {
+    var asyncHelpers3 = new AsyncHelpers();
+    var upper = function (str) {
+      throw new Error('UPPER Error');
+    };
+    asyncHelpers3.set('upper', upper);
+    var helper = asyncHelpers3.get('upper', {wrap: true});
+    var id = helper('doowb');
+    asyncHelpers3.resolve(id, function (err, val) {
+      if (!err) return done(new Error('Expected an error.'));
+      done();
+    });
+  });
+
+  it ('should handle errors in async helpers', function (done) {
+    var asyncHelpers3 = new AsyncHelpers();
+    var upper = function (str, next) {
+      throw new Error('UPPER Error');
+    };
+    asyncHelpers3.set('upper', upper);
+    var helper = asyncHelpers3.get('upper', {wrap: true});
+    var id = helper('doowb');
+    asyncHelpers3.resolve(id, function (err, val) {
+      if (!err) return done(new Error('Expected an error.'));
+      done();
+    });
+  });
 });
