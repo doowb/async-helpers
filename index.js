@@ -148,7 +148,7 @@ function wrapper(name, fn, thisArg) {
     }
 
     // generate a unique ID for the wrapped helper
-    var id = thisArg.prefix + thisArg.globalCounter + (thisArg.counter++) + '__';
+    var id = thisArg.prefix + thisArg.globalCounter + '_' + (thisArg.counter++) + '__';
     var obj = {
       id: id,
       name: name,
