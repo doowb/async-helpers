@@ -259,7 +259,11 @@ AsyncHelpers.prototype.resolve = function(key, cb) {
       if (stashed.fn.async) {
         args = args.concat(next);
       }
-      res = stashed.fn.apply(stashed.thisArg, args);
+      try {
+        res = stashed.fn.apply(stashed.thisArg, args);
+      } catch (err) {
+        return next(err);
+      }
       if (!stashed.fn.async) {
         return next(null, res);
       }
