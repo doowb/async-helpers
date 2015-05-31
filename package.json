@@ -14,10 +14,7 @@
   "bugs": {
     "url": "https://github.com/doowb/async-helpers/issues"
   },
-  "license": {
-    "type": "MIT",
-    "url": "https://github.com/doowb/async-helpers/blob/master/LICENSE"
-  },
+  "license": "MIT",
   "files": [
     "index.js"
   ],
