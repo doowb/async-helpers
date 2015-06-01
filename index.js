@@ -262,7 +262,7 @@ AsyncHelpers.prototype.resolve = function(key, cb) {
       try {
         res = stashed.fn.apply(stashed.thisArg, args);
       } catch (err) {
-        return next(err);
+        return next(formatError(err, stashed));
       }
       if (!stashed.fn.async) {
         return next(null, res);
@@ -287,4 +287,10 @@ function once (fn) {
     fn.value = fn.apply(fn, arguments);
     return fn.value;
   };
+}
+
+function formatError(err, helper) {
+  err.message += ' [resolving `' + helper.name + '`]';
+  err.helper = helper;
+  return err;
 }
