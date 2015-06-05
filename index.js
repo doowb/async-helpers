@@ -258,14 +258,14 @@ AsyncHelpers.prototype.resolve = function(key, cb) {
       var args = stashed.args;
       if (stashed.fn.async) {
         args = args.concat(function (err, result) {
-          if (err) return next(formatError(err, stashed));
+          if (err) return next(formatError(err, stashed, args));
           return next(err, result);
         });
       }
       try {
         res = stashed.fn.apply(stashed.thisArg, args);
       } catch (err) {
-        return next(formatError(err, stashed));
+        return next(formatError(err, stashed, args));
       }
       if (!stashed.fn.async) {
         return next(null, res);
@@ -292,8 +292,17 @@ function once (fn) {
   };
 }
 
-function formatError(err, helper) {
-  err.message += ' [resolving `' + helper.name + '`]';
+function formatError(err, helper, args) {
+  args = args.filter(function (arg) {
+    if (!arg || typeof arg === 'function') {
+      return false;
+    }
+    return true;
+  });
+  err.reason = '"' +  helper.name
+    + '" helper cannot resolve: `'
+    + args.join(', ') + '`';
   err.helper = helper;
+  err.args = args;
   return err;
 }
