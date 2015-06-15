@@ -293,16 +293,29 @@ function once (fn) {
 }
 
 function formatError(err, helper, args) {
-  args = args.filter(function (arg) {
-    if (!arg || typeof arg === 'function') {
-      return false;
-    }
-    return true;
-  });
-  err.reason = '"' +  helper.name
-    + '" helper cannot resolve: `'
-    + args.join(', ') + '`';
+  err.reason = '"' +  helper.name + '" '
+    + 'helper cannot resolve: `'
+    + formatArgs(args) + '`';
   err.helper = helper;
   err.args = args;
   return err;
+}
+
+function formatArgs(args) {
+  var len = args.length, i = 0;
+  var res = '';
+  while (len--) {
+    var arg = args[i++];
+    if (!arg || typeof arg !== 'function') {
+      continue;
+    }
+    if (Array.isArray(arg)) {
+      res += arg.join(', ');
+    } else if (typeof arg === 'object') {
+      res += formatArgs(arg);
+    } else {
+      res += arg;
+    }
+  }
+  return res;
 }
