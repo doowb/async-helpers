@@ -8,8 +8,7 @@
 'use strict';
 
 var async = require('async');
-
-module.exports = AsyncHelpers;
+var cache = {};
 
 /**
  * Create a new instance of AsyncHelpers
@@ -32,7 +31,7 @@ function AsyncHelpers (options) {
   this.stash = {};
   this.counter = 0;
   this.globalCounter = AsyncHelpers.globalCounter++;
-};
+}
 
 /**
  * Keep track of instances created for generating globally
@@ -133,6 +132,8 @@ function wrap(name) {
  */
 
 function wrapper(name, fn, thisArg) {
+  var prefix = thisArg.prefix + thisArg.globalCounter + '_';
+
   return function() {
     var argRefs = [];
     var len = arguments.length;
@@ -141,14 +142,17 @@ function wrapper(name, fn, thisArg) {
     for (var i = len - 1; i >= 0; i--) {
       var arg = args[i] = arguments[i];
 
-      // store references to other async helpers
-      if (typeof arg === 'string' && arg.indexOf(thisArg.prefix) === 0) {
-        argRefs.push({arg: arg, idx: i});
+      // store references to other async helpers (string === '__async_0_1')
+      if (typeof arg === 'string') {
+        var matches = arg.match(new RegExp(prefix + '(\\d+)', 'g'));
+        if (matches) {
+          argRefs.push({arg: arg, idx: i, matches: matches});
+        }
       }
     }
 
     // generate a unique ID for the wrapped helper
-    var id = thisArg.prefix + thisArg.globalCounter + '_' + (thisArg.counter++) + '__';
+    var id = prefix + (thisArg.counter++) + '__';
     var obj = {
       id: id,
       name: name,
@@ -159,7 +163,7 @@ function wrapper(name, fn, thisArg) {
 
     thisArg.stash[obj.id] = obj;
     return obj.id;
-  }
+  };
 }
 
 /**
@@ -208,7 +212,7 @@ AsyncHelpers.prototype.reset = function() {
  * ```js
  * var upper = asyncHelpers.get('upper', {wrap: true});
  * var id = upper('doowb');
- * asyncHelpers.resolve(id, function (err, result) {
+ * asyncHelpers.resolveId(id, function (err, result) {
  *   console.log(result);
  *   //=> DOOWB
  * });
@@ -219,14 +223,17 @@ AsyncHelpers.prototype.reset = function() {
  * @api public
  */
 
-AsyncHelpers.prototype.resolve = function(key, cb) {
+AsyncHelpers.prototype.resolveId = function(key, cb) {
   if (typeof cb !== 'function') {
-    throw new Error('AsyncHelpers#resolve() expects a callback function.');
+    throw new Error('AsyncHelpers#resolveId() expects a callback function.');
   }
 
   if (typeof key !== 'string') {
-    cb(new Error('AsyncHelpers#resolve() expects `key` to be a string.'));
+    cb(new Error('AsyncHelpers#resolveId() expects `key` to be a string.'));
   }
+
+  var prefix = this.prefix + this.globalCounter + '_';
+  var re = cache[prefix] || (cache[prefix] = new RegExp(prefix + '(\\d+)'));
 
   var stashed = this.stash[key];
   if (!stashed) {
@@ -241,11 +248,18 @@ AsyncHelpers.prototype.resolve = function(key, cb) {
   async.series([
     function (next) {
       if (stashed.argRefs.length > 0) {
-        async.each(stashed.argRefs, function (arg, nextArg) {
-          self.resolve(arg.arg, function (err, value) {
-            if (err) return nextArg(err);
-            stashed.args[arg.idx] = value;
-            nextArg();
+        async.each(stashed.argRefs, function (ref, next2) {
+          if (ref.matches.length) {
+            return self.resolveIds(ref.arg, function (err, value) {
+              if (err) return next2(err);
+              stashed.args[ref.idx] = value;
+              next2();
+            });
+          }
+          self.resolveId(ref.arg, function (err, value) {
+            if (err) return next2(err);
+            stashed.args[ref.idx] = value;
+            next2();
           });
         }, next);
       } else {
@@ -256,14 +270,21 @@ AsyncHelpers.prototype.resolve = function(key, cb) {
       next = once(next);
       var res = null;
       var args = stashed.args;
+
       if (stashed.fn.async) {
         args = args.concat(function (err, result) {
           if (err) return next(formatError(err, stashed, args));
+          if (re.test(result)) {
+            return self.resolveIds(result, next);
+          }
           return next(err, result);
         });
       }
       try {
         res = stashed.fn.apply(stashed.thisArg, args);
+        if (re.test(res)) {
+          return self.resolveIds(res, next);
+        }
       } catch (err) {
         return next(formatError(err, stashed, args));
       }
@@ -283,6 +304,35 @@ AsyncHelpers.prototype.resolve = function(key, cb) {
 
 };
 
+AsyncHelpers.prototype.resolveIds = function(str, cb) {
+  if (typeof cb !== 'function') {
+    throw new TypeError('AsyncHelpers#resolveIds() expects a callback function.');
+  }
+  if (typeof str !== 'string') {
+    return cb(new TypeError('AsyncHelpers#resolveIds() expects a string.'));
+  }
+
+  var self = this;
+  // `stash` contains the objects created when rendering the template
+  var stashed = this.stash;
+  async.eachSeries(Object.keys(stashed), function (key, next) {
+    // check to see if the async ID is in the rendered string
+    if (str.indexOf(key) === -1) {
+      return next(null);
+    }
+
+    self.resolveId(key, function (err, value) {
+      if (err) return next(err);
+      // replace the async ID with the resolved value
+      str = str.split(key).join(value);
+      next(null);
+    });
+  }, function (err) {
+    if (err) return cb(err);
+    cb(null, str);
+  });
+};
+
 function once (fn) {
   return function () {
     if (fn.called) return fn.value;
@@ -293,29 +343,25 @@ function once (fn) {
 }
 
 function formatError(err, helper, args) {
-  err.reason = '"' +  helper.name + '" '
-    + 'helper cannot resolve: `'
-    + formatArgs(args) + '`';
+  args = args.filter(function (arg) {
+    if (!arg || typeof arg === 'function') {
+      return false;
+    }
+    return true;
+  }).map(function (arg) {
+    return JSON.stringify(arg);
+  });
+
+  err.reason = '"' +  helper.name
+    + '" helper cannot resolve: `'
+    + args.join(', ') + '`';
   err.helper = helper;
   err.args = args;
   return err;
 }
 
-function formatArgs(args) {
-  var len = args.length, i = 0;
-  var res = '';
-  while (len--) {
-    var arg = args[i++];
-    if (!arg || typeof arg !== 'function') {
-      continue;
-    }
-    if (Array.isArray(arg)) {
-      res += arg.join(', ');
-    } else if (typeof arg === 'object') {
-      res += formatArgs(arg);
-    } else {
-      res += arg;
-    }
-  }
-  return res;
-}
+/**
+ * Expose `AsyncHelpers`
+ */
+
+module.exports = AsyncHelpers;

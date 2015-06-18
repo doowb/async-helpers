@@ -95,8 +95,8 @@ describe('async-helpers', function () {
     var id = helper(['doowb', 'jonschlinkert'], upper);
     assert.equal(id, '__async0_0__');
 
-    // resolve the id
-    asyncHelpers.resolve(id, function (err, val) {
+    // resolveId the id
+    asyncHelpers.resolveId(id, function (err, val) {
       if (err) return done(err);
       assert.deepEqual(val, ['DOOWB', 'JONSCHLINKERT']);
       done();
@@ -111,7 +111,7 @@ describe('async-helpers', function () {
     asyncHelpers3.set('upper', upper);
     var helper = asyncHelpers3.get('upper', {wrap: true});
     var id = helper('doowb');
-    asyncHelpers3.resolve(id, function (err, val) {
+    asyncHelpers3.resolveId(id, function (err, val) {
       if (!err) return done(new Error('Expected an error.'));
       try { assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`'); }
       catch (err) { return done(err) }
@@ -128,7 +128,7 @@ describe('async-helpers', function () {
     asyncHelpers3.set('upper', upper);
     var helper = asyncHelpers3.get('upper', {wrap: true});
     var id = helper('doowb');
-    asyncHelpers3.resolve(id, function (err, val) {
+    asyncHelpers3.resolveId(id, function (err, val) {
       if (!err) return done(new Error('Expected an error.'));
       try { assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`'); }
       catch (err) { return done(err) }
@@ -145,7 +145,7 @@ describe('async-helpers', function () {
     asyncHelpers3.set('upper', upper);
     var helper = asyncHelpers3.get('upper', {wrap: true});
     var id = helper('doowb');
-    asyncHelpers3.resolve(id, function (err, val) {
+    asyncHelpers3.resolveId(id, function (err, val) {
       if (!err) return done(new Error('Expected an error'));
       try { assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`'); }
       catch (err) { return done(err) }

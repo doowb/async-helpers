@@ -10,7 +10,6 @@ describe('handlebars', function () {
   it('should work in handlebars', function (done) {
 
     var asyncHelpers = new AsyncHelpers();
-    var resolve = require('./lib/resolve')(asyncHelpers);
 
     // add the helpers to asyncHelpers
     asyncHelpers.set('upper', helpers.upper);
@@ -41,7 +40,7 @@ describe('handlebars', function () {
     // render the template with a simple context object
     var rendered = fn({name: 'doowb'});
 
-    resolve(rendered, function (err, content) {
+    asyncHelpers.resolveIds(rendered, function (err, content) {
       if (err) return done(err);
       assert.deepEqual(content, [
         'input: doowb',
