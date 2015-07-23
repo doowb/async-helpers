@@ -7,6 +7,8 @@
 
 'use strict';
 
+var lazy = require('lazy-cache')(require);
+var safeStringify = lazy('safe-json-stringify');
 var async = require('async');
 var cache = {};
 
@@ -343,13 +345,14 @@ function once (fn) {
 }
 
 function formatError(err, helper, args) {
+  var stringify = safeStringify();
   args = args.filter(function (arg) {
     if (!arg || typeof arg === 'function') {
       return false;
     }
     return true;
   }).map(function (arg) {
-    return JSON.stringify(arg);
+    return stringify(arg);
   });
 
   err.reason = '"' +  helper.name
