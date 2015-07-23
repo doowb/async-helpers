@@ -1,7 +1,7 @@
 {
   "name": "async-helpers",
   "description": "Use async helpers in templates with engines that typically only handle sync helpers. Handlebars and Lodash have been tested.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "homepage": "https://github.com/doowb/async-helpers",
   "author": {
     "name": "Brian Woodward",
