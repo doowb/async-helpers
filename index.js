@@ -8,8 +8,14 @@
 'use strict';
 
 var lazy = require('lazy-cache')(require);
-var safeStringify = lazy('safe-json-stringify');
-var async = require('async');
+
+/**
+ * Lazily required module dependencies
+ */
+
+lazy('safe-json-stringify', 'stringify');
+lazy('async');
+
 var cache = {};
 
 /**
@@ -247,10 +253,10 @@ AsyncHelpers.prototype.resolveId = function(key, cb) {
   }
 
   var self = this;
-  async.series([
+  lazy.async.series([
     function (next) {
       if (stashed.argRefs.length > 0) {
-        async.each(stashed.argRefs, function (ref, next2) {
+        lazy.async.each(stashed.argRefs, function (ref, next2) {
           if (ref.matches.length) {
             return self.resolveIds(ref.arg, function (err, value) {
               if (err) return next2(err);
@@ -317,7 +323,7 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   var self = this;
   // `stash` contains the objects created when rendering the template
   var stashed = this.stash;
-  async.eachSeries(Object.keys(stashed), function (key, next) {
+  lazy.async.eachSeries(Object.keys(stashed), function (key, next) {
     // check to see if the async ID is in the rendered string
     if (str.indexOf(key) === -1) {
       return next(null);
@@ -345,14 +351,13 @@ function once (fn) {
 }
 
 function formatError(err, helper, args) {
-  var stringify = safeStringify();
   args = args.filter(function (arg) {
     if (!arg || typeof arg === 'function') {
       return false;
     }
     return true;
   }).map(function (arg) {
-    return stringify(arg);
+    return lazy.stringify(arg);
   });
 
   err.reason = '"' +  helper.name
