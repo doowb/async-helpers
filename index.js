@@ -154,7 +154,7 @@ function wrapper(name, fn, thisArg) {
       if (typeof arg === 'string') {
         var matches = arg.match(new RegExp(prefix + '(\\d+)', 'g'));
         if (matches) {
-          argRefs.push({arg: arg, idx: i, matches: matches});
+          argRefs.push({arg: arg, idx: i});
         }
       }
     }
@@ -257,13 +257,6 @@ AsyncHelpers.prototype.resolveId = function(key, cb) {
     function (next) {
       if (stashed.argRefs.length > 0) {
         lazy.async.each(stashed.argRefs, function (ref, next2) {
-          if (ref.matches.length) {
-            return self.resolveIds(ref.arg, function (err, value) {
-              if (err) return next2(err);
-              stashed.args[ref.idx] = value;
-              next2();
-            });
-          }
           self.resolveId(ref.arg, function (err, value) {
             if (err) return next2(err);
             stashed.args[ref.idx] = value;
