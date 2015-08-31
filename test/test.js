@@ -103,6 +103,39 @@ describe('async-helpers', function () {
     });
   });
 
+  it('should support helpers used as arguments that return objects', function (done) {
+    var profile = function (user, next) {
+      if (typeof user !== 'object') {
+        return next(new Error('Expected user to be an object but got ' + (typeof user)));
+      }
+      next(null, user.name);
+    };
+    profile.async = true;
+
+    var user = function (name, next) {
+      var res = {
+        id: name,
+        name: name
+      };
+      next(null, res);
+    };
+    user.async = true;
+    asyncHelpers.set('user', user);
+    asyncHelpers.set('profile', profile);
+    var userHelper = asyncHelpers.get('user', {wrap: true});
+    var userId = userHelper('doowb');
+    assert.equal(userId, '__async0_0__');
+
+    var profileHelper = asyncHelpers.get('profile', {wrap: true});
+    var profileId = profileHelper(userId);
+
+    asyncHelpers.resolveIds(profileId, function (err, val) {
+      if (err) return done(err);
+      assert.deepEqual(val, 'doowb');
+      done();
+    });
+  });
+
   it ('should handle errors in sync helpers', function (done) {
     var asyncHelpers3 = new AsyncHelpers();
     var upper = function (str) {
