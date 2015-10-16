@@ -42,5 +42,22 @@
     "template",
     "templates",
     "underscore"
+  ],
+  "contributors": [
+    {
+      "name": "Brian Woodward",
+      "email": "brian.woodward@gmail.com",
+      "url": "https://github.com/doowb"
+    },
+    {
+      "name": "Jon Schlinkert",
+      "email": "github@sellside.com",
+      "url": "https://github.com/jonschlinkert"
+    },
+    {
+      "name": "Nils Knappmeier",
+      "email": "npm@knappi.org",
+      "url": "https://github.com/nknapp"
+    }
   ]
 }
