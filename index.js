@@ -25,6 +25,10 @@ var cache = {};
  * var asyncHelpers = new AsyncHelpers();
  * ```
  *
+ * @param {Object} `options` options to pass to instance
+ * @param {Function} `createPrefix` Create the id prefix given a prefix and current global counter.
+ * @param {Function} `createId` Create the entire id given an already generated prefix and the current instance counter.
+ * @param {Function} `createRegExp` Create the regex string that will be passed to `new RegExp` for testing if an async id placeholder exists. Takes the current prefix value.
  * @return {Object} new AsyncHelpers instance
  * @api public
  */
@@ -34,6 +38,7 @@ function AsyncHelpers (options) {
     return new AsyncHelpers(options);
   }
   options = options || {};
+  this.options = options;
   this.prefix = options.prefix || '{$ASYNCID$';
   this.helpers = {};
   this.stash = {};
@@ -140,7 +145,7 @@ function wrap(name) {
  */
 
 function wrapper(name, fn, thisArg) {
-  var prefix = thisArg.prefix + thisArg.globalCounter + '$';
+  var prefix = createPrefix(thisArg.prefix, thisArg.globalCounter, thisArg.options);
 
   return function() {
     var argRefs = [];
@@ -152,7 +157,7 @@ function wrapper(name, fn, thisArg) {
 
       // store references to other async helpers (string === '__async_0_1')
       if (typeof arg === 'string') {
-        var matches = arg.match(new RegExp(prefix.split('$').join('\\\$') + '(\\d)+\\$}', 'g'));
+        var matches = arg.match(new RegExp(createRegExp(prefix, thisArg.options), 'g'));
         if (matches) {
           argRefs.push({arg: arg, idx: i});
         }
@@ -160,7 +165,7 @@ function wrapper(name, fn, thisArg) {
     }
 
     // generate a unique ID for the wrapped helper
-    var id = prefix + (thisArg.counter++) + '$}';
+    var id = createId(prefix, thisArg.counter++, thisArg.options);
     var obj = {
       id: id,
       name: name,
@@ -240,8 +245,8 @@ AsyncHelpers.prototype.resolveId = function(key, cb) {
     cb(new Error('AsyncHelpers#resolveId() expects `key` to be a string.'));
   }
 
-  var prefix = this.prefix + this.globalCounter + '$';
-  var re = cache[prefix] || (cache[prefix] = new RegExp(prefix.split('$').join('\\\$') + '(\\d)+\\$}'));
+  var prefix = createPrefix(this.prefix, this.globalCounter, this.options);
+  var re = cache[prefix] || (cache[prefix] = new RegExp(createRegExp(prefix, this.options)));
   var stashed = this.stash[key];
   if (!stashed) {
     return cb(new Error('Unable to resolve ' + key + '. Not Found'));
@@ -358,6 +363,30 @@ function formatError(err, helper, args) {
   err.helper = helper;
   err.args = args;
   return err;
+}
+
+function createPrefix(prefix, counter, options) {
+  options = options || {};
+  if (typeof options.createPrefix === 'function') {
+    return option.createPrefix(prefix, counter);
+  }
+  return prefix + counter + '$';
+}
+
+function createId(prefix, counter, options) {
+  options = options || {};
+  if (typeof options.createId === 'function') {
+    return option.createId(prefix, counter);
+  }
+  return prefix + counter + '$}';
+}
+
+function createRegExp(prefix, options) {
+  options = options || {};
+  if (typeof options.createRegExp === 'function') {
+    return option.createRegExp(prefix);
+  }
+  return prefix.split('$').join('\\\$') + '(\\d)+\\$}'
 }
 
 /**
