@@ -15,6 +15,9 @@ var helpers = {
         delim = ' ';
       }
       cb(null, str.split('').join(delim));
+    },
+    block: function block (options) {
+      return options.fn(this);
     }
   },
   lodash: {
