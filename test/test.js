@@ -59,7 +59,7 @@ describe('async-helpers', function () {
       return str.toUpperCase();
     }
     asyncHelpers.set('upper', upper);
-    assert.deepEqual(asyncHelpers.get('upper', { wrap: true })('doowb'), '__async0_0__');
+    assert.deepEqual(asyncHelpers.get('upper', { wrap: true })('doowb'), '{$ASYNCID$0$0$}');
   });
 
   it('should increment globalCounter for multiple instances of AsyncHelpers', function () {
@@ -70,12 +70,12 @@ describe('async-helpers', function () {
   });
 
   it('should return an async id with a custom prefix', function () {
-    var asyncHelpers2 = new AsyncHelpers({prefix: '__custom_prefix__'});
+    var asyncHelpers2 = new AsyncHelpers({prefix: '{$custom$prefix$$'});
     var upper = function (str) {
       return str.toUpperCase();
     };
     asyncHelpers2.set('upper', upper);
-    assert.deepEqual(asyncHelpers2.get('upper', { wrap: true })('doowb'), '__custom_prefix__1_0__');
+    assert.deepEqual(asyncHelpers2.get('upper', { wrap: true })('doowb'), '{$custom$prefix$$1$0$}');
   });
 
   it('should support helpers that take arrays as an argument', function (done) {
@@ -93,7 +93,7 @@ describe('async-helpers', function () {
 
     // call the helper to get the id
     var id = helper(['doowb', 'jonschlinkert'], upper);
-    assert.equal(id, '__async0_0__');
+    assert.equal(id, '{$ASYNCID$0$0$}');
 
     // resolveId the id
     asyncHelpers.resolveId(id, function (err, val) {
@@ -124,7 +124,7 @@ describe('async-helpers', function () {
     asyncHelpers.set('profile', profile);
     var userHelper = asyncHelpers.get('user', {wrap: true});
     var userId = userHelper('doowb');
-    assert.equal(userId, '__async0_0__');
+    assert.equal(userId, '{$ASYNCID$0$0$}');
 
     var profileHelper = asyncHelpers.get('profile', {wrap: true});
     var profileId = profileHelper(userId);
