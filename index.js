@@ -34,7 +34,7 @@ function AsyncHelpers (options) {
     return new AsyncHelpers(options);
   }
   options = options || {};
-  this.prefix = options.prefix || '__async';
+  this.prefix = options.prefix || '{$ASYNCID$';
   this.helpers = {};
   this.stash = {};
   this.counter = 0;
@@ -136,11 +136,11 @@ function wrap(name) {
  * @param  {String} `name` The name of the helper
  * @param  {Function} `fn` The actual helper function
  * @param  {Object} `thisArg` Context
- * @return {String} Returns an async ID to use for resolving the value. ex: `__async18__`
+ * @return {String} Returns an async ID to use for resolving the value. ex: `{$ASYNCID$!$8$}`
  */
 
 function wrapper(name, fn, thisArg) {
-  var prefix = thisArg.prefix + thisArg.globalCounter + '_';
+  var prefix = thisArg.prefix + thisArg.globalCounter + '$';
 
   return function() {
     var argRefs = [];
@@ -152,7 +152,7 @@ function wrapper(name, fn, thisArg) {
 
       // store references to other async helpers (string === '__async_0_1')
       if (typeof arg === 'string') {
-        var matches = arg.match(new RegExp(prefix + '(\\d+)', 'g'));
+        var matches = arg.match(new RegExp(prefix.split('$').join('\\\$') + '(\\d)+\\$}', 'g'));
         if (matches) {
           argRefs.push({arg: arg, idx: i});
         }
@@ -160,7 +160,7 @@ function wrapper(name, fn, thisArg) {
     }
 
     // generate a unique ID for the wrapped helper
-    var id = prefix + (thisArg.counter++) + '__';
+    var id = prefix + (thisArg.counter++) + '$}';
     var obj = {
       id: id,
       name: name,
@@ -240,9 +240,8 @@ AsyncHelpers.prototype.resolveId = function(key, cb) {
     cb(new Error('AsyncHelpers#resolveId() expects `key` to be a string.'));
   }
 
-  var prefix = this.prefix + this.globalCounter + '_';
-  var re = cache[prefix] || (cache[prefix] = new RegExp(prefix + '(\\d+)'));
-
+  var prefix = this.prefix + this.globalCounter + '$';
+  var re = cache[prefix] || (cache[prefix] = new RegExp(prefix.split('$').join('\\\$') + '(\\d)+\\$}'));
   var stashed = this.stash[key];
   if (!stashed) {
     return cb(new Error('Unable to resolve ' + key + '. Not Found'));
