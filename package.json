@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "async": "^1.5.2",
+    "gulp-format-md": "^0.1.7",
     "handlebars": "^4.0.5",
     "lodash": "^4.6.1",
     "mocha": "*"
@@ -44,5 +45,21 @@
     "template",
     "templates",
     "underscore"
-  ]
+  ],
+  "verb": {
+    "layout": "default",
+    "plugins": [
+      "gulp-format-md"
+    ],
+    "related": {
+      "list": [
+        "assemble",
+        "co",
+        "generate",
+        "templates",
+        "verb"
+      ]
+    },
+    "task": "readme"
+  }
 }
