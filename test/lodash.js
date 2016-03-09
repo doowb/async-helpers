@@ -7,18 +7,18 @@ var AsyncHelpers = require('../');
 var helpers = require('./lib/helpers').lodash;
 
 describe('lodash', function () {
-  it('should work in lodash', function (done) {
+  it('should work in lodash', function () {
 
     var asyncHelpers = new AsyncHelpers();
 
     // add the helpers to asyncHelpers
-    asyncHelpers.set('upper', helpers.upper);
-    asyncHelpers.set('lower', helpers.lower);
-    asyncHelpers.set('spacer', helpers.spacer);
+    asyncHelpers.set('upper', helpers.upper.async ? 'async' : 'sync', helpers.upper);
+    asyncHelpers.set('lower', helpers.lower.async ? 'async' : 'sync', helpers.lower);
+    asyncHelpers.set('spacer', helpers.spacer.async ? 'async' : 'sync', helpers.spacer);
 
     // pull the helpers back out and wrap them
     // with async handling functionality
-    var wrapped = asyncHelpers.get({wrap: true});
+    var wrapped = asyncHelpers.get();
 
     // using Lodash, render a template with helpers
     var tmpl = [
@@ -37,18 +37,14 @@ describe('lodash', function () {
     // render the compiled template with the simple context object
     var rendered = fn({name: 'doowb'});
 
-    asyncHelpers.resolveIds(rendered, function (err, content) {
-      if (err) return done(err);
-      assert.deepEqual(content, [
-        'input: doowb',
-        'upper: DOOWB',
-        'lower: doowb',
-        'spacer: d o o w b',
-        'spacer-delim: d-o-o-w-b',
-        'lower(upper): doowb',
-        'spacer(upper, lower): DxOxOxWxB'
-      ].join('\n'));
-      done();
-    });
+    assert.deepEqual(rendered, [
+      'input: doowb',
+      'upper: DOOWB',
+      'lower: doowb',
+      'spacer: d o o w b',
+      'spacer-delim: d-o-o-w-b',
+      'lower(upper): doowb',
+      'spacer(upper, lower): DxOxOxWxB'
+    ].join('\n'));
   });
 });
