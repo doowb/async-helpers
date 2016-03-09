@@ -213,18 +213,20 @@ AsyncHelpers.prototype.reset = function() {
 
 /**
  * Resolve a stashed helper by the generated id.
+ * This is a generator function and should be used with [co][]
  *
  * ```js
  * var upper = asyncHelpers.get('upper', {wrap: true});
  * var id = upper('doowb');
- * asyncHelpers.resolveId(id, function (err, result) {
- *   console.log(result);
- *   //=> DOOWB
- * });
+ *
+ * co(asyncHelpers.resolveId(id))
+ *   .then(console.log)
+ *   .catch(console.error);
+ *
+ * //=> DOOWB
  * ```
  *
  * @param  {String} `key` ID generated when from executing a wrapped helper.
- * @param  {Function} `cb` Callback function with the results of executing the async helper.
  * @api public
  */
 
@@ -280,6 +282,19 @@ AsyncHelpers.prototype.resolveId = function* (key) {
   }
 };
 
+/**
+ * Generator function for resolving helper arguments
+ * that contain async ids. This function should be used
+ * with [co][].
+ *
+ * This is used inside `resolveId`:
+ *
+ * ```js
+ * var args = yield co(asyncHelpers.resolveArgs(helper));
+ * ```
+ * @param {Object} `helper` helper object with an `argRefs` array.
+ */
+
 AsyncHelpers.prototype.resolveArgs = function* (helper) {
   var args = helper.args;
   var len = helper.argRefs.length, i = 0;
@@ -289,6 +304,22 @@ AsyncHelpers.prototype.resolveArgs = function* (helper) {
   }
   return args;
 };
+
+/**
+ * After rendering a string using wrapped async helpers,
+ * use `resolveIds` to invoke the original async helpers and replace
+ * the async ids with results from the async helpers.
+ *
+ * ```js
+ * asyncHelpers.resolveIds(renderedString, function(err, content) {
+ *   if (err) return console.error(err);
+ *   console.log(content);
+ * });
+ * ```
+ * @param  {String} `str` String containing async ids
+ * @param  {Function} `cb` Callback function accepting an `err` and `content` parameters.
+ * @api public
+ */
 
 AsyncHelpers.prototype.resolveIds = function(str, cb) {
   if (typeof cb !== 'function') {
@@ -324,6 +355,16 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   });
 };
 
+/**
+ * Format an error message to provide better information about the
+ * helper and the arguments passed to the helper when the error occurred.
+ *
+ * @param  {Object} `err` Error object
+ * @param  {Object} `helper` helper object to provide more information
+ * @param  {Array} `args` Array of arguments passed to the helper.
+ * @return {Object} Formatted Error object
+ */
+
 function formatError(err, helper, args) {
   args = args.filter(function (arg) {
     if (!arg || typeof arg === 'function') {
@@ -342,6 +383,16 @@ function formatError(err, helper, args) {
   return err;
 }
 
+/**
+ * Create a prefix to use when generating an async id.
+ *
+ * @param  {String} `prefix` prefix string to start with.
+ * @param  {String} `counter` string to append.
+ * @param  {Object} `options` Options object
+ * @param  {Function} `options.createPrefix` Optional createPrefix function to handle creating the prefix.
+ * @return {String} new prefix
+ */
+
 function createPrefix(prefix, counter, options) {
   options = options || {};
   if (typeof options.createPrefix === 'function') {
@@ -350,6 +401,16 @@ function createPrefix(prefix, counter, options) {
   return prefix + counter + '$';
 }
 
+/**
+ * Create an async id from the provided prefix and counter.
+ *
+ * @param  {String} `prefix` prefix string to start with
+ * @param  {String} `counter` string to append.
+ * @param  {Object} `options` Options object
+ * @param  {Function} `options.createId` Optional createId function to handle creating the id
+ * @return {String} async id
+ */
+
 function createId(prefix, counter, options) {
   options = options || {};
   if (typeof options.createId === 'function') {
@@ -357,6 +418,15 @@ function createId(prefix, counter, options) {
   }
   return prefix + counter + '$}';
 }
+
+/**
+ * Create a string to pass into `RegExp` for checking for and finding async ids.
+ *
+ * @param  {String} `prefix` prefix to use for the first part of the regex
+ * @param  {Object} `options` Options object.
+ * @param  {Function} `options.createRegExp` Optional createRegExp function to handle creating the RegExp string.
+ * @return {String} string to pass into `RegExp`
+ */
 
 function createRegExp(prefix, options) {
   options = options || {};
