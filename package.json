@@ -14,7 +14,7 @@
   "license": "MIT",
   "files": [
     "index.js",
-    "utils.js"
+    "lib/"
   ],
   "main": "index.js",
   "engines": {
@@ -24,13 +24,15 @@
     "test": "mocha"
   },
   "dependencies": {
-    "async": "^1.5.0",
+    "co": "^4.6.0",
+    "deasync": "^0.1.4",
+    "export-files": "^2.1.1",
     "lazy-cache": "^1.0.3",
     "safe-json-stringify": "^1.0.3"
   },
   "devDependencies": {
-    "handlebars": "^3.0.3",
-    "lodash": "^3.10.1",
+    "handlebars": "^4.0.5",
+    "lodash": "^4.6.1",
     "mocha": "*"
   },
   "keywords": [
