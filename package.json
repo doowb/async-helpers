@@ -24,13 +24,14 @@
     "test": "mocha"
   },
   "dependencies": {
-    "async": "^1.5.0",
+    "co": "^4.6.0",
     "lazy-cache": "^1.0.3",
     "safe-json-stringify": "^1.0.3"
   },
   "devDependencies": {
-    "handlebars": "^3.0.3",
-    "lodash": "^3.10.1",
+    "async": "^1.5.2",
+    "handlebars": "^4.0.5",
+    "lodash": "^4.6.1",
     "mocha": "*"
   },
   "keywords": [
