@@ -2,6 +2,7 @@
 
 /* deps:mocha */
 var assert = require('assert');
+var co = require('co');
 var AsyncHelpers = require('../');
 var asyncHelpers = null;
 
@@ -78,7 +79,7 @@ describe('async-helpers', function () {
     assert.deepEqual(asyncHelpers2.get('upper', { wrap: true })('doowb'), '{$custom$prefix$$1$0$}');
   });
 
-  it('should support helpers that take arrays as an argument', function (done) {
+  it('should support helpers that take arrays as an argument', function () {
     var async = require('async');
     // function to use as an iterator
     var upper = function (str, next) {
@@ -96,11 +97,10 @@ describe('async-helpers', function () {
     assert.equal(id, '{$ASYNCID$0$0$}');
 
     // resolveId the id
-    asyncHelpers.resolveId(id, function (err, val) {
-      if (err) return done(err);
-      assert.deepEqual(val, ['DOOWB', 'JONSCHLINKERT']);
-      done();
-    });
+    return co(asyncHelpers.resolveId(id))
+      .then(function (val) {
+        assert.deepEqual(val, ['DOOWB', 'JONSCHLINKERT']);
+      });
   });
 
   it('should support helpers used as arguments that return objects', function (done) {
@@ -136,7 +136,7 @@ describe('async-helpers', function () {
     });
   });
 
-  it ('should handle errors in sync helpers', function (done) {
+  it('should handle errors in sync helpers', function () {
     var asyncHelpers3 = new AsyncHelpers();
     var upper = function (str) {
       throw new Error('UPPER Error');
@@ -144,15 +144,16 @@ describe('async-helpers', function () {
     asyncHelpers3.set('upper', upper);
     var helper = asyncHelpers3.get('upper', {wrap: true});
     var id = helper('doowb');
-    asyncHelpers3.resolveId(id, function (err, val) {
-      if (!err) return done(new Error('Expected an error.'));
-      try { assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`'); }
-      catch (err) { return done(err); }
-      done();
-    });
+    return co(asyncHelpers3.resolveId(id))
+      .then(function (val) {
+        throw new Error('expected an error');
+      })
+      .catch(function(err) {
+        assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`');
+      });
   });
 
-  it ('should handle errors in async helpers', function (done) {
+  it('should handle errors in async helpers', function () {
     var asyncHelpers3 = new AsyncHelpers();
     var upper = function (str, next) {
       throw new Error('UPPER Error');
@@ -161,15 +162,16 @@ describe('async-helpers', function () {
     asyncHelpers3.set('upper', upper);
     var helper = asyncHelpers3.get('upper', {wrap: true});
     var id = helper('doowb');
-    asyncHelpers3.resolveId(id, function (err, val) {
-      if (!err) return done(new Error('Expected an error.'));
-      try { assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`'); }
-      catch (err) { return done(err); }
-      done();
-    });
+    return co(asyncHelpers3.resolveId(id))
+      .then(function(val) {
+        throw new Error('expected an error');
+      })
+      .catch(function (err) {
+        assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`');
+      });
   });
 
-  it ('should handle returned errors in async helpers', function (done) {
+  it('should handle returned errors in async helpers', function () {
     var asyncHelpers3 = new AsyncHelpers();
     var upper = function (str, next) {
       next(new Error('UPPER Error'));
@@ -178,15 +180,16 @@ describe('async-helpers', function () {
     asyncHelpers3.set('upper', upper);
     var helper = asyncHelpers3.get('upper', {wrap: true});
     var id = helper('doowb');
-    asyncHelpers3.resolveId(id, function (err, val) {
-      if (!err) return done(new Error('Expected an error'));
-      try { assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`'); }
-      catch (err) { return done(err); }
-      done();
-    });
+    return co(asyncHelpers3.resolveId(id))
+      .then(function(val) {
+        throw new Error('expected an error');
+      })
+      .catch(function (err) {
+        assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`');
+      });
   });
 
-  it ('should handle errors with arguments with circular references', function (done) {
+  it('should handle errors with arguments with circular references', function () {
     var asyncHelpers3 = new AsyncHelpers();
     var upper = function (str, next) {
       throw new Error('UPPER Error');
@@ -197,11 +200,12 @@ describe('async-helpers', function () {
     var obj = {username: 'doowb'};
     obj.profile = obj;
     var id = helper(obj);
-    asyncHelpers3.resolveId(id, function (err, val) {
-      if (!err) return done(new Error('Expected an error'));
-      try { assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`'); }
-      catch (err) { return done(err); }
-      done();
-    });
+    return co(asyncHelpers3.resolveId(id))
+      .then(function(val) {
+        throw new Error('Expected an error');
+      })
+      .catch(function (err) {
+        assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`');
+      });
   });
 });
