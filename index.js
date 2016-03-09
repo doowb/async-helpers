@@ -9,6 +9,7 @@
 
 var utils = require('./utils');
 var cache = {};
+var stash = {};
 
 /**
  * Create a new instance of AsyncHelpers
@@ -33,7 +34,6 @@ function AsyncHelpers (options) {
   this.options = options;
   this.prefix = options.prefix || '{$ASYNCID$';
   this.helpers = {};
-  this.stash = {};
   this.counter = 0;
   this.globalCounter = AsyncHelpers.globalCounter++;
 }
@@ -149,8 +149,8 @@ function wrapper(name, fn, thisArg) {
 
       // store references to other async helpers (string === '__async_0_1')
       if (typeof arg === 'string') {
-        var matches = arg.match(new RegExp(createRegExp(prefix, thisArg.options), 'g'));
-        if (matches) {
+        var re = new RegExp(createRegExp(prefix, thisArg.options), 'g');
+        if (re.test(arg)) {
           argRefs.push({arg: arg, idx: i});
         }
       }
@@ -166,7 +166,7 @@ function wrapper(name, fn, thisArg) {
       argRefs: argRefs
     };
 
-    thisArg.stash[obj.id] = obj;
+    stash[obj.id] = obj;
     return obj.id;
   };
 }
@@ -206,7 +206,7 @@ AsyncHelpers.prototype.wrap = function(name) {
  */
 
 AsyncHelpers.prototype.reset = function() {
-  this.stash = {};
+  stash = {};
   this.counter = 0;
   return this;
 };
@@ -228,77 +228,66 @@ AsyncHelpers.prototype.reset = function() {
  * @api public
  */
 
-AsyncHelpers.prototype.resolveId = function(key, cb) {
-  if (typeof cb !== 'function') {
-    throw new Error('AsyncHelpers#resolveId() expects a callback function.');
-  }
-
+AsyncHelpers.prototype.resolveId = function* (key) {
   if (typeof key !== 'string') {
-    cb(new Error('AsyncHelpers#resolveId() expects `key` to be a string.'));
+    throw new Error('AsyncHelpers#resolveId() expects `key` to be a string.');
   }
-
+  var self = this;
   var prefix = createPrefix(this.prefix, this.globalCounter, this.options);
   var re = cache[prefix] || (cache[prefix] = new RegExp(createRegExp(prefix, this.options)));
-  var stashed = this.stash[key];
-  if (!stashed) {
-    return cb(new Error('Unable to resolve ' + key + '. Not Found'));
+  var helper = stash[key];
+  if (!helper) {
+    throw new Error('Unable to resolve ' + key + '. Not Found');
   }
 
-  if (typeof stashed.fn !== 'function') {
-    return cb(null, stashed.fn);
-  }
+  var res;
+  var args = yield utils.co(this.resolveArgs(helper));
 
-  var self = this;
-  utils.async.series([
-    function (next) {
-      if (stashed.argRefs.length > 0) {
-        utils.async.each(stashed.argRefs, function (ref, next2) {
-          self.resolveId(ref.arg, function (err, value) {
-            if (err) return next2(err);
-            stashed.args[ref.idx] = value;
-            next2();
-          });
-        }, next);
+  return yield function(cb) {
+    if (typeof helper.fn !== 'function') {
+      return cb(null, helper.fn);
+    }
+
+    var done = function(err, val) {
+      if (typeof val !== 'undefined') {
+        helper.fn = val;
+        return cb(err, helper.fn);
       } else {
-        next();
+        return cb(err, '');
       }
-    },
-    function (next) {
-      next = once(next);
-      var res = null;
-      var args = stashed.args;
+    }
 
-      if (stashed.fn.async) {
-        args = args.concat(function (err, result) {
-          if (err) return next(formatError(err, stashed, args));
-          if (re.test(result)) {
-            return self.resolveIds(result, next);
-          }
-          return next(err, result);
-        });
-      }
-      try {
-        res = stashed.fn.apply(stashed.thisArg, args);
-        if (re.test(res)) {
-          return self.resolveIds(res, next);
+    if (helper.fn.async) {
+      args = args.concat(function(err, result) {
+        if (err) return done(formatError(err, helper, args));
+        if (re.test(result)) {
+          return self.resolveIds(result, done);
         }
-      } catch (err) {
-        return next(formatError(err, stashed, args));
-      }
-      if (!stashed.fn.async) {
-        return next(null, res);
-      }
+        return done(null, result);
+      });
     }
-  ], function (err, results) {
-    if (typeof results[1] !== 'undefined') {
-      // update the fn so if it's called again it'll just return the true results
-      stashed.fn = results[1];
-      return cb(err, stashed.fn);
-    } else {
-      return cb(err, '');
+    try {
+      res = helper.fn.apply(helper.thisArg, args);
+      if(re.test(res)) {
+        return self.resolveIds(res, done);
+      }
+    } catch (err) {
+      return done(formatError(err, helper, args));
     }
-  });
+    if (!helper.fn.async) {
+      return done(null, res);
+    }
+  }
+};
 
+AsyncHelpers.prototype.resolveArgs = function* (helper) {
+  var args = helper.args;
+  var len = helper.argRefs.length, i = 0;
+  while(len--) {
+    var ref = helper.argRefs[i++];
+    args[ref.idx] = yield utils.co(this.resolveId(ref.arg));
+  }
+  return args;
 };
 
 AsyncHelpers.prototype.resolveIds = function(str, cb) {
@@ -310,34 +299,30 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   }
 
   var self = this;
-  // `stash` contains the objects created when rendering the template
-  var stashed = this.stash;
-  utils.async.eachSeries(Object.keys(stashed), function (key, next) {
-    // check to see if the async ID is in the rendered string
-    if (str.indexOf(key) === -1) {
-      return next(null);
-    }
+  var prefix = createPrefix(this.prefix, '(\\d)+', this.options)
+  var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix, this.options) + ')', 'g'));
+  var keys = str.match(re);
+  utils.co(function* () {
+    if (!keys) return str;
 
-    self.resolveId(key, function (err, value) {
-      if (err) return next(err);
-      // replace the async ID with the resolved value
-      str = str.split(key).join(value);
-      next(null);
-    });
-  }, function (err) {
-    if (err) return cb(err);
-    cb(null, str);
+    var len = keys.length, i = 0;
+    while(len--) {
+      var key = keys[i++];
+      if (str.indexOf(key) === -1) {
+        continue;
+      }
+      var val = yield utils.co(self.resolveId(key));
+      str = str.split(key).join(val);
+    }
+    return str;
+  })
+  .then(function(res) {
+    cb(null, res);
+  })
+  .catch(function(err) {
+    cb(err);
   });
 };
-
-function once (fn) {
-  return function () {
-    if (fn.called) return fn.value;
-    fn.called = true;
-    fn.value = fn.apply(fn, arguments);
-    return fn.value;
-  };
-}
 
 function formatError(err, helper, args) {
   args = args.filter(function (arg) {
