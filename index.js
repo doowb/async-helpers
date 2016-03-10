@@ -19,9 +19,6 @@ var stash = {};
  * ```
  *
  * @param {Object} `options` options to pass to instance
- * @param {Function} `createPrefix` Create the id prefix given a prefix and current global counter.
- * @param {Function} `createId` Create the entire id given an already generated prefix and the current instance counter.
- * @param {Function} `createRegExp` Create the regex string that will be passed to `new RegExp` for testing if an async id placeholder exists. Takes the current prefix value.
  * @return {Object} new AsyncHelpers instance
  * @api public
  */
@@ -137,7 +134,7 @@ function wrap(name) {
  */
 
 function wrapper(name, fn, thisArg) {
-  var prefix = createPrefix(thisArg.prefix, thisArg.globalCounter, thisArg.options);
+  var prefix = createPrefix(thisArg.prefix, thisArg.globalCounter);
 
   return function() {
     var argRefs = [];
@@ -145,19 +142,17 @@ function wrapper(name, fn, thisArg) {
     var args = new Array(len);
 
     for (var i = len - 1; i >= 0; i--) {
+      var re = new RegExp(createRegExp(prefix), 'g');
       var arg = args[i] = arguments[i];
 
       // store references to other async helpers (string === '__async_0_1')
-      if (typeof arg === 'string') {
-        var re = new RegExp(createRegExp(prefix, thisArg.options), 'g');
-        if (re.test(arg)) {
-          argRefs.push({arg: arg, idx: i});
-        }
+      if (typeof arg === 'string' && re.test(arg)) {
+        argRefs.push({arg: arg, idx: i});
       }
     }
 
     // generate a unique ID for the wrapped helper
-    var id = createId(prefix, thisArg.counter++, thisArg.options);
+    var id = createId(prefix, thisArg.counter++);
     var obj = {
       id: id,
       name: name,
@@ -235,8 +230,8 @@ AsyncHelpers.prototype.resolveId = function* (key) {
     throw new Error('AsyncHelpers#resolveId() expects `key` to be a string.');
   }
   var self = this;
-  var prefix = createPrefix(this.prefix, this.globalCounter, this.options);
-  var re = cache[prefix] || (cache[prefix] = new RegExp(createRegExp(prefix, this.options)));
+  var prefix = createPrefix(this.prefix, this.globalCounter);
+  var re = cache[prefix] || (cache[prefix] = new RegExp(createRegExp(prefix)));
   var helper = stash[key];
   if (!helper) {
     throw new Error('Unable to resolve ' + key + '. Not Found');
@@ -330,8 +325,8 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   }
 
   var self = this;
-  var prefix = createPrefix(this.prefix, '(\\d)+', this.options)
-  var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix, this.options) + ')', 'g'));
+  var prefix = createPrefix(this.prefix, '(\\d)+')
+  var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
   var keys = str.match(re);
   utils.co(function* () {
     if (!keys) return str;
@@ -339,9 +334,6 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
     var len = keys.length, i = 0;
     while(len--) {
       var key = keys[i++];
-      if (str.indexOf(key) === -1) {
-        continue;
-      }
       var val = yield utils.co(self.resolveId(key));
       str = str.split(key).join(val);
     }
@@ -388,16 +380,10 @@ function formatError(err, helper, args) {
  *
  * @param  {String} `prefix` prefix string to start with.
  * @param  {String} `counter` string to append.
- * @param  {Object} `options` Options object
- * @param  {Function} `options.createPrefix` Optional createPrefix function to handle creating the prefix.
  * @return {String} new prefix
  */
 
-function createPrefix(prefix, counter, options) {
-  options = options || {};
-  if (typeof options.createPrefix === 'function') {
-    return option.createPrefix(prefix, counter);
-  }
+function createPrefix(prefix, counter) {
   return prefix + counter + '$';
 }
 
@@ -406,16 +392,10 @@ function createPrefix(prefix, counter, options) {
  *
  * @param  {String} `prefix` prefix string to start with
  * @param  {String} `counter` string to append.
- * @param  {Object} `options` Options object
- * @param  {Function} `options.createId` Optional createId function to handle creating the id
  * @return {String} async id
  */
 
-function createId(prefix, counter, options) {
-  options = options || {};
-  if (typeof options.createId === 'function') {
-    return option.createId(prefix, counter);
-  }
+function createId(prefix, counter) {
   return prefix + counter + '$}';
 }
 
@@ -423,17 +403,16 @@ function createId(prefix, counter, options) {
  * Create a string to pass into `RegExp` for checking for and finding async ids.
  *
  * @param  {String} `prefix` prefix to use for the first part of the regex
- * @param  {Object} `options` Options object.
- * @param  {Function} `options.createRegExp` Optional createRegExp function to handle creating the RegExp string.
  * @return {String} string to pass into `RegExp`
  */
 
-function createRegExp(prefix, options) {
-  options = options || {};
-  if (typeof options.createRegExp === 'function') {
-    return option.createRegExp(prefix);
+function createRegExp(prefix) {
+  var key = 'prefix:' + prefix;
+  if (cache[key]) {
+    return cache[key];
   }
-  return prefix.split('$').join('\\\$') + '(\\d)+\\$}'
+  var res = prefix.split('$').join('\\\$') + '(\\d)+\\$}';
+  return (cache[key] = res);
 }
 
 /**
