@@ -1,11 +1,13 @@
-# async-helpers [![NPM version](https://badge.fury.io/js/async-helpers.svg)](http://badge.fury.io/js/async-helpers)  [![Build Status](https://travis-ci.org/doowb/async-helpers.svg)](https://travis-ci.org/doowb/async-helpers)
+# async-helpers [![NPM version](https://img.shields.io/npm/v/async-helpers.svg)](https://www.npmjs.com/) [![Build Status](https://img.shields.io/travis/doowb/async-helpers.svg)](index.js#L26)
 
 > Use async helpers in templates with engines that typically only handle sync helpers. Handlebars and Lodash have been tested.
 
-Install with [npm](https://www.npmjs.com/)
+## Install
+
+Install with [npm](https://www.npmjs.com/):
 
 ```sh
-$ npm i async-helpers --save
+$ npm install async-helpers --save
 ```
 
 ## Usage
@@ -16,10 +18,13 @@ var asyncHelpers = require('async-helpers');
 
 ## API
 
-### [AsyncHelpers](index.js#L32)
+### [AsyncHelpers](index.js#L26)
 
 Create a new instance of AsyncHelpers
 
+**Params**
+
+* `options` **{Object}**: options to pass to instance
 * `returns` **{Object}**: new AsyncHelpers instance
 
 **Example**
@@ -28,7 +33,7 @@ Create a new instance of AsyncHelpers
 var asyncHelpers = new AsyncHelpers();
 ```
 
-### [.set](index.js#L68)
+### [.set](index.js#L62)
 
 Add a helper to the cache.
 
@@ -46,7 +51,7 @@ asyncHelpers.set('upper', function (str, cb) {
 });
 ```
 
-### [.get](index.js#L91)
+### [.get](index.js#L85)
 
 Get all helpers or a helper with the given name.
 
@@ -63,7 +68,7 @@ var helpers = asyncHelpers.get();
 var wrappedHelpers = helperAync.get({wrap: true});
 ```
 
-### [.wrap](index.js#L190)
+### [.wrap](index.js#L182)
 
 Wrap a helper with async handling capibilities.
 
@@ -79,7 +84,7 @@ var wrappedHelper = asyncHelpers.wrap('upper');
 var wrappedHelpers = asyncHelpers.wrap();
 ```
 
-### [.reset](index.js#L211)
+### [.reset](index.js#L203)
 
 Reset all the stashed helpers.
 
@@ -91,56 +96,91 @@ Reset all the stashed helpers.
 asyncHelpers.reset();
 ```
 
-### [.resolveId](index.js#L234)
+### [.resolveId](index.js#L228)
 
-Resolve a stashed helper by the generated id.
+Resolve a stashed helper by the generated id. This is a generator function and should be used with [co](https://github.com/tj/co)
 
 **Params**
 
 * `key` **{String}**: ID generated when from executing a wrapped helper.
-* `cb` **{Function}**: Callback function with the results of executing the async helper.
 
 **Example**
 
 ```js
 var upper = asyncHelpers.get('upper', {wrap: true});
 var id = upper('doowb');
-asyncHelpers.resolveId(id, function (err, result) {
-  console.log(result);
-  //=> DOOWB
+
+co(asyncHelpers.resolveId(id))
+  .then(console.log)
+  .catch(console.error);
+
+//=> DOOWB
+```
+
+### [.resolveIds](index.js#L319)
+
+After rendering a string using wrapped async helpers, use `resolveIds` to invoke the original async helpers and replace the async ids with results from the async helpers.
+
+**Params**
+
+* `str` **{String}**: String containing async ids
+* `cb` **{Function}**: Callback function accepting an `err` and `content` parameters.
+
+**Example**
+
+```js
+asyncHelpers.resolveIds(renderedString, function(err, content) {
+  if (err) return console.error(err);
+  console.log(content);
 });
 ```
 
 ## Related projects
 
-* [engine-cache](https://www.npmjs.com/package/engine-cache): express.js inspired template-engine manager. | [homepage](https://github.com/jonschlinkert/engine-cache)
-* [helper-cache](https://www.npmjs.com/package/helper-cache): Easily register and get helper functions to be passed to any template engine or node.js… [more](https://www.npmjs.com/package/helper-cache) | [homepage](https://github.com/jonschlinkert/helper-cache)
-* [template-helpers](https://www.npmjs.com/package/template-helpers): Generic JavaScript helpers that can be used with any template engine. Handlebars, Lo-Dash, Underscore, or… [more](https://www.npmjs.com/package/template-helpers) | [homepage](https://github.com/jonschlinkert/template-helpers)
-
-## Run tests
-
-Install dev dependencies:
-
-```sh
-$ npm i -d && npm test
-```
+* [assemble](https://www.npmjs.com/package/assemble): Assemble is a powerful, extendable and easy to use static site generator for node.js. Used… [more](https://www.npmjs.com/package/assemble) | [homepage](https://github.com/assemble/assemble)
+* [co](https://www.npmjs.com/package/co): generator async control flow goodness | [homepage](https://github.com/tj/co)
+* [generate](https://www.npmjs.com/package/generate): Fast, composable, highly extendable project generator with a user-friendly and expressive API. | [homepage](https://github.com/generate/generate)
+* [templates](https://www.npmjs.com/package/templates): System for creating and managing template collections, and rendering templates with any node.js template engine.… [more](https://www.npmjs.com/package/templates) | [homepage](https://github.com/jonschlinkert/templates)
+* [verb](https://www.npmjs.com/package/verb): Documentation generator for GitHub projects. Verb is extremely powerful, easy to use, and is used… [more](https://www.npmjs.com/package/verb) | [homepage](https://github.com/verbose/verb)
 
 ## Contributing
 
 Pull requests and stars are always welcome. For bugs and feature requests, [please create an issue](https://github.com/doowb/async-helpers/issues/new).
 
+## Building docs
+
+Generate readme and API documentation with [verb][]:
+
+```sh
+$ npm install verb && npm run docs
+```
+
+Or, if [verb][] is installed globally:
+
+```sh
+$ verb
+```
+
+## Running tests
+
+Install dev dependencies:
+
+```sh
+$ npm install -d && npm test
+```
+
 ## Author
 
 **Brian Woodward**
 
-+ [github/doowb](https://github.com/doowb)
-+ [twitter/doowb](http://twitter.com/doowb)
+* [github/doowb](https://github.com/doowb)
+* [twitter/doowb](http://twitter.com/doowb)
 
 ## License
 
-Copyright © 2015 Brian Woodward
-Released under the MIT license.
+Copyright © 2016 [Brian Woodward](https://github.com/doowb)
+Released under the [MIT license](https://github.com/doowb/async-helpers/blob/master/LICENSE).
 
 ***
 
-_This file was generated by [verb-cli](https://github.com/assemble/verb-cli) on August 30, 2015._
+_This file was generated by [verb](https://github.com/verbose/verb), v0.9.0, on March 10, 2016._

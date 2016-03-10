@@ -24,7 +24,7 @@ require = utils;
  * Lazily required module dependencies
  */
 
-require('async');
+require('co');
 require('safe-json-stringify', 'stringify');
 
 /**

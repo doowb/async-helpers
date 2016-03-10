@@ -111,25 +111,5 @@ resolve(_rendered, function (err, rendered) {
 
 
 function resolve (rendered, done) {
-  // implementing code can do this piece based on optimizations they want to use.
-  // `stash` contains the objects created when rendering the template
-  var stashed = asyncHelpers.stash;
-  var keys = Object.keys(stashed);
-  async.eachSeries(keys, function (key, next) {
-    // check to see if the async ID is in the rendered string
-    var i = rendered.indexOf(key);
-    if (i === -1) {
-      // if not go on to the next one
-      return next(null);
-    }
-    asyncHelpers.resolve(key, function (err, value) {
-      if (err) return next(err);
-      // replace the async ID with the resolved value
-      rendered = rendered.replace(key, value);
-      next(null);
-    });
-  }, function (err) {
-    if (err) return done(err);
-    done(null, rendered);
-  });
+  asyncHelpers.resolveIds(rendered, done);
 }

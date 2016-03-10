@@ -9,6 +9,7 @@
 
 var utils = require('./utils');
 var cache = {};
+var stash = {};
 
 /**
  * Create a new instance of AsyncHelpers
@@ -18,9 +19,6 @@ var cache = {};
  * ```
  *
  * @param {Object} `options` options to pass to instance
- * @param {Function} `createPrefix` Create the id prefix given a prefix and current global counter.
- * @param {Function} `createId` Create the entire id given an already generated prefix and the current instance counter.
- * @param {Function} `createRegExp` Create the regex string that will be passed to `new RegExp` for testing if an async id placeholder exists. Takes the current prefix value.
  * @return {Object} new AsyncHelpers instance
  * @api public
  */
@@ -33,7 +31,6 @@ function AsyncHelpers (options) {
   this.options = options;
   this.prefix = options.prefix || '{$ASYNCID$';
   this.helpers = {};
-  this.stash = {};
   this.counter = 0;
   this.globalCounter = AsyncHelpers.globalCounter++;
 }
@@ -137,7 +134,7 @@ function wrap(name) {
  */
 
 function wrapper(name, fn, thisArg) {
-  var prefix = createPrefix(thisArg.prefix, thisArg.globalCounter, thisArg.options);
+  var prefix = createPrefix(thisArg.prefix, thisArg.globalCounter);
 
   return function() {
     var argRefs = [];
@@ -145,19 +142,17 @@ function wrapper(name, fn, thisArg) {
     var args = new Array(len);
 
     for (var i = len - 1; i >= 0; i--) {
+      var re = new RegExp(createRegExp(prefix), 'g');
       var arg = args[i] = arguments[i];
 
       // store references to other async helpers (string === '__async_0_1')
-      if (typeof arg === 'string') {
-        var matches = arg.match(new RegExp(createRegExp(prefix, thisArg.options), 'g'));
-        if (matches) {
-          argRefs.push({arg: arg, idx: i});
-        }
+      if (typeof arg === 'string' && re.test(arg)) {
+        argRefs.push({arg: arg, idx: i});
       }
     }
 
     // generate a unique ID for the wrapped helper
-    var id = createId(prefix, thisArg.counter++, thisArg.options);
+    var id = createId(prefix, thisArg.counter++);
     var obj = {
       id: id,
       name: name,
@@ -166,7 +161,7 @@ function wrapper(name, fn, thisArg) {
       argRefs: argRefs
     };
 
-    thisArg.stash[obj.id] = obj;
+    stash[obj.id] = obj;
     return obj.id;
   };
 }
@@ -206,100 +201,120 @@ AsyncHelpers.prototype.wrap = function(name) {
  */
 
 AsyncHelpers.prototype.reset = function() {
-  this.stash = {};
+  stash = {};
   this.counter = 0;
   return this;
 };
 
 /**
  * Resolve a stashed helper by the generated id.
+ * This is a generator function and should be used with [co][]
  *
  * ```js
  * var upper = asyncHelpers.get('upper', {wrap: true});
  * var id = upper('doowb');
- * asyncHelpers.resolveId(id, function (err, result) {
- *   console.log(result);
- *   //=> DOOWB
- * });
+ *
+ * co(asyncHelpers.resolveId(id))
+ *   .then(console.log)
+ *   .catch(console.error);
+ *
+ * //=> DOOWB
  * ```
  *
  * @param  {String} `key` ID generated when from executing a wrapped helper.
- * @param  {Function} `cb` Callback function with the results of executing the async helper.
  * @api public
  */
 
-AsyncHelpers.prototype.resolveId = function(key, cb) {
-  if (typeof cb !== 'function') {
-    throw new Error('AsyncHelpers#resolveId() expects a callback function.');
-  }
-
+AsyncHelpers.prototype.resolveId = function* (key) {
   if (typeof key !== 'string') {
-    cb(new Error('AsyncHelpers#resolveId() expects `key` to be a string.'));
+    throw new Error('AsyncHelpers#resolveId() expects `key` to be a string.');
   }
-
-  var prefix = createPrefix(this.prefix, this.globalCounter, this.options);
-  var re = cache[prefix] || (cache[prefix] = new RegExp(createRegExp(prefix, this.options)));
-  var stashed = this.stash[key];
-  if (!stashed) {
-    return cb(new Error('Unable to resolve ' + key + '. Not Found'));
-  }
-
-  if (typeof stashed.fn !== 'function') {
-    return cb(null, stashed.fn);
-  }
-
   var self = this;
-  utils.async.series([
-    function (next) {
-      if (stashed.argRefs.length > 0) {
-        utils.async.each(stashed.argRefs, function (ref, next2) {
-          self.resolveId(ref.arg, function (err, value) {
-            if (err) return next2(err);
-            stashed.args[ref.idx] = value;
-            next2();
-          });
-        }, next);
+  var prefix = createPrefix(this.prefix, this.globalCounter);
+  var re = cache[prefix] || (cache[prefix] = new RegExp(createRegExp(prefix)));
+  var helper = stash[key];
+  if (!helper) {
+    throw new Error('Unable to resolve ' + key + '. Not Found');
+  }
+
+  var res;
+  var args = yield utils.co(this.resolveArgs(helper));
+
+  return yield function(cb) {
+    if (typeof helper.fn !== 'function') {
+      return cb(null, helper.fn);
+    }
+
+    var done = function(err, val) {
+      if (typeof val !== 'undefined') {
+        helper.fn = val;
+        return cb(err, helper.fn);
       } else {
-        next();
+        return cb(err, '');
       }
-    },
-    function (next) {
-      next = once(next);
-      var res = null;
-      var args = stashed.args;
+    }
 
-      if (stashed.fn.async) {
-        args = args.concat(function (err, result) {
-          if (err) return next(formatError(err, stashed, args));
-          if (re.test(result)) {
-            return self.resolveIds(result, next);
-          }
-          return next(err, result);
-        });
-      }
-      try {
-        res = stashed.fn.apply(stashed.thisArg, args);
-        if (re.test(res)) {
-          return self.resolveIds(res, next);
+    if (helper.fn.async) {
+      args = args.concat(function(err, result) {
+        if (err) return done(formatError(err, helper, args));
+        if (re.test(result)) {
+          return self.resolveIds(result, done);
         }
-      } catch (err) {
-        return next(formatError(err, stashed, args));
-      }
-      if (!stashed.fn.async) {
-        return next(null, res);
-      }
+        return done(null, result);
+      });
     }
-  ], function (err, results) {
-    if (typeof results[1] !== 'undefined') {
-      // update the fn so if it's called again it'll just return the true results
-      stashed.fn = results[1];
-      return cb(err, stashed.fn);
-    } else {
-      return cb(err, '');
+    try {
+      res = helper.fn.apply(helper.thisArg, args);
+      if(re.test(res)) {
+        return self.resolveIds(res, done);
+      }
+    } catch (err) {
+      return done(formatError(err, helper, args));
     }
-  });
-
+    if (!helper.fn.async) {
+      return done(null, res);
+    }
+  }
 };
+
+/**
+ * Generator function for resolving helper arguments
+ * that contain async ids. This function should be used
+ * with [co][].
+ *
+ * This is used inside `resolveId`:
+ *
+ * ```js
+ * var args = yield co(asyncHelpers.resolveArgs(helper));
+ * ```
+ * @param {Object} `helper` helper object with an `argRefs` array.
+ */
+
+AsyncHelpers.prototype.resolveArgs = function* (helper) {
+  var args = helper.args;
+  var len = helper.argRefs.length, i = 0;
+  while(len--) {
+    var ref = helper.argRefs[i++];
+    args[ref.idx] = yield utils.co(this.resolveId(ref.arg));
+  }
+  return args;
+};
+
+/**
+ * After rendering a string using wrapped async helpers,
+ * use `resolveIds` to invoke the original async helpers and replace
+ * the async ids with results from the async helpers.
+ *
+ * ```js
+ * asyncHelpers.resolveIds(renderedString, function(err, content) {
+ *   if (err) return console.error(err);
+ *   console.log(content);
+ * });
+ * ```
+ * @param  {String} `str` String containing async ids
+ * @param  {Function} `cb` Callback function accepting an `err` and `content` parameters.
+ * @api public
+ */
 
 AsyncHelpers.prototype.resolveIds = function(str, cb) {
   if (typeof cb !== 'function') {
@@ -310,34 +325,37 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   }
 
   var self = this;
-  // `stash` contains the objects created when rendering the template
-  var stashed = this.stash;
-  utils.async.eachSeries(Object.keys(stashed), function (key, next) {
-    // check to see if the async ID is in the rendered string
-    if (str.indexOf(key) === -1) {
-      return next(null);
-    }
+  var prefix = createPrefix(this.prefix, '(\\d)+')
+  var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
+  var keys = str.match(re);
+  utils.co(function* () {
+    if (!keys) return str;
 
-    self.resolveId(key, function (err, value) {
-      if (err) return next(err);
-      // replace the async ID with the resolved value
-      str = str.split(key).join(value);
-      next(null);
-    });
-  }, function (err) {
-    if (err) return cb(err);
-    cb(null, str);
+    var len = keys.length, i = 0;
+    while(len--) {
+      var key = keys[i++];
+      var val = yield utils.co(self.resolveId(key));
+      str = str.split(key).join(val);
+    }
+    return str;
+  })
+  .then(function(res) {
+    cb(null, res);
+  })
+  .catch(function(err) {
+    cb(err);
   });
 };
 
-function once (fn) {
-  return function () {
-    if (fn.called) return fn.value;
-    fn.called = true;
-    fn.value = fn.apply(fn, arguments);
-    return fn.value;
-  };
-}
+/**
+ * Format an error message to provide better information about the
+ * helper and the arguments passed to the helper when the error occurred.
+ *
+ * @param  {Object} `err` Error object
+ * @param  {Object} `helper` helper object to provide more information
+ * @param  {Array} `args` Array of arguments passed to the helper.
+ * @return {Object} Formatted Error object
+ */
 
 function formatError(err, helper, args) {
   args = args.filter(function (arg) {
@@ -357,28 +375,44 @@ function formatError(err, helper, args) {
   return err;
 }
 
-function createPrefix(prefix, counter, options) {
-  options = options || {};
-  if (typeof options.createPrefix === 'function') {
-    return option.createPrefix(prefix, counter);
-  }
+/**
+ * Create a prefix to use when generating an async id.
+ *
+ * @param  {String} `prefix` prefix string to start with.
+ * @param  {String} `counter` string to append.
+ * @return {String} new prefix
+ */
+
+function createPrefix(prefix, counter) {
   return prefix + counter + '$';
 }
 
-function createId(prefix, counter, options) {
-  options = options || {};
-  if (typeof options.createId === 'function') {
-    return option.createId(prefix, counter);
-  }
+/**
+ * Create an async id from the provided prefix and counter.
+ *
+ * @param  {String} `prefix` prefix string to start with
+ * @param  {String} `counter` string to append.
+ * @return {String} async id
+ */
+
+function createId(prefix, counter) {
   return prefix + counter + '$}';
 }
 
-function createRegExp(prefix, options) {
-  options = options || {};
-  if (typeof options.createRegExp === 'function') {
-    return option.createRegExp(prefix);
+/**
+ * Create a string to pass into `RegExp` for checking for and finding async ids.
+ *
+ * @param  {String} `prefix` prefix to use for the first part of the regex
+ * @return {String} string to pass into `RegExp`
+ */
+
+function createRegExp(prefix) {
+  var key = 'prefix:' + prefix;
+  if (cache[key]) {
+    return cache[key];
   }
-  return prefix.split('$').join('\\\$') + '(\\d)+\\$}'
+  var res = prefix.split('$').join('\\\$') + '(\\d)+\\$}';
+  return (cache[key] = res);
 }
 
 /**
