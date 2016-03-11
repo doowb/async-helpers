@@ -116,10 +116,15 @@ function wrap(name) {
   var helper = this.helpers[name];
   if (typeof helper === 'object') {
     for (var key in helper) {
-      helper[key] = wrapper(key, helper[key], this);
+      if (helper[key].wrapped !== true) {
+        helper[key] = wrapper(key, helper[key], this);
+      }
     }
     return helper;
   } else {
+    if (helper.wrapped === true) {
+      return helper;
+    }
     return wrapper(name, helper, this);
   }
 }
@@ -136,7 +141,7 @@ function wrap(name) {
 function wrapper(name, fn, thisArg) {
   var prefix = createPrefix(thisArg.prefix, thisArg.globalCounter);
 
-  return function() {
+  function wrapped() {
     var argRefs = [];
     var len = arguments.length;
     var args = new Array(len);
@@ -163,7 +168,13 @@ function wrapper(name, fn, thisArg) {
 
     stash[obj.id] = obj;
     return obj.id;
-  };
+  }
+  Object.defineProperty(wrapped, 'wrapped', {
+    configurable: true,
+    enumerable: false,
+    value: true
+  });
+  return wrapped;
 }
 
 /**
@@ -264,7 +275,7 @@ AsyncHelpers.prototype.resolveId = function* (key) {
       });
     }
     try {
-      res = helper.fn.apply(helper.thisArg, args);
+      res = helper.fn.apply(helper.fn, args);
       if(re.test(res)) {
         return self.resolveIds(res, done);
       }
