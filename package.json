@@ -48,6 +48,9 @@
   ],
   "verb": {
     "layout": "default",
+    "tasks": [
+      "readme"
+    ],
     "plugins": [
       "gulp-format-md"
     ],
@@ -60,6 +63,12 @@
         "verb"
       ]
     },
-    "task": "readme"
+    "reflinks": [
+      "co",
+      "verb"
+    ],
+    "lint": {
+      "reflinks": true
+    }
   }
 }
