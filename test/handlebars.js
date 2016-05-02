@@ -30,7 +30,7 @@ describe('handlebars', function () {
       'spacer-delim: {{spacer name "-"}}',
       'lower(upper): {{lower (upper name)}}',
       'spacer(upper, lower): {{spacer (upper name) (lower "X")}}',
-      'block: {{#block}}{{upper ../name}}{{/block}}'
+      'block: {{#block}}{{upper name}}{{/block}}'
     ].join('\n');
 
     // register the helpers with Handlebars

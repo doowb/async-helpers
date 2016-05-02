@@ -163,7 +163,8 @@ function wrapper(name, fn, thisArg) {
       name: name,
       fn: fn,
       args: args,
-      argRefs: argRefs
+      argRefs: argRefs,
+      thisArg: this
     };
 
     stash[obj.id] = obj;
@@ -275,7 +276,7 @@ AsyncHelpers.prototype.resolveId = function* (key) {
       });
     }
     try {
-      res = helper.fn.apply(helper.fn, args);
+      res = helper.fn.apply(helper.thisArg, args);
       if(re.test(res)) {
         return self.resolveIds(res, done);
       }
