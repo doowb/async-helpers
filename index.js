@@ -154,6 +154,9 @@ function wrapper(name, fn, thisArg) {
       if (typeof arg === 'string' && re.test(arg)) {
         argRefs.push({arg: arg, idx: i});
       }
+      if (typeof arg === 'object' && typeof arg.hash === 'object') {
+        argRefs.push({arg: arg, idx: i});
+      }
     }
 
     // generate a unique ID for the wrapped helper
@@ -307,7 +310,24 @@ AsyncHelpers.prototype.resolveArgs = function* (helper) {
   var len = helper.argRefs.length, i = 0;
   while(len--) {
     var ref = helper.argRefs[i++];
-    args[ref.idx] = yield utils.co(this.resolveId(ref.arg));
+    if (typeof ref.arg === 'string') {
+      args[ref.idx] = yield utils.co(this.resolveId(ref.arg));
+    } else {
+      var prefix = createPrefix(this.prefix, '(\\d)+')
+      var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
+      var hash = ref.arg.hash;
+      var keys = Object.keys(hash);
+      ref.arg.hash = yield keys.reduce(function(acc, key) {
+        return utils.co(function*() {
+          var val = acc[key];
+          if (typeof val !== 'string' || !re.test(val)) {
+            acc[key] = val;
+          }
+          acc[key] = yield utils.co(this.resolveId(val));
+          return acc;
+        }.bind(this));
+      }.bind(this), hash);
+    }
   }
   return args;
 };
