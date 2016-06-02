@@ -253,7 +253,7 @@ AsyncHelpers.prototype.resolveId = function*(key) {
   }
 
   var res;
-  var args = yield utils.co(this.resolveArgs(helper));
+  var args = yield this.resolveArgs(helper);
 
   return yield function(cb) {
     if (typeof helper.fn !== 'function') {
@@ -311,25 +311,43 @@ AsyncHelpers.prototype.resolveArgs = function*(helper) {
   while (len--) {
     var ref = helper.argRefs[i++];
     if (typeof ref.arg === 'string') {
-      args[ref.idx] = yield utils.co(this.resolveId(ref.arg));
+      args[ref.idx] = yield this.resolveId(ref.arg);
     } else {
-      var prefix = createPrefix(this.prefix, '(\\d)+');
-      var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
-      var hash = ref.arg.hash;
-      var keys = Object.keys(hash);
-      ref.arg.hash = yield keys.reduce(function(acc, key) {
-        return utils.co(function*() {
-          var val = acc[key];
-          if (typeof val !== 'string' || !re.test(val)) {
-            acc[key] = val;
-          }
-          acc[key] = yield utils.co(this.resolveId(val));
-          return acc;
-        }.bind(this));
-      }.bind(this), hash);
+      ref.arg.hash = yield this.resolveObject(ref.arg.hash);
     }
   }
   return args;
+};
+
+/**
+ * Generator function for resolving values on an object
+ * that contain async ids. This function should be used
+ * with [co][].
+ *
+ * This is used inside `resolveArgs`:
+ *
+ * ```js
+ * var args = yield co(asyncHelpers.resolveObject(options.hash));
+ * ```
+ * @param {Object} `obj` object with with values that may be async ids.
+ * @returns {Object} Object with resolved values.
+ */
+
+AsyncHelpers.prototype.resolveObject = function*(obj) {
+  var prefix = createPrefix(this.prefix, '(\\d)+');
+  var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
+
+  var keys = Object.keys(obj);
+  return yield keys.reduce(function(acc, key) {
+    return utils.co(function*() {
+      var val = acc[key];
+      if (typeof val !== 'string' || !re.test(val)) {
+        acc[key] = val;
+      }
+      acc[key] = yield this.resolveId(val);
+      return acc;
+    }.bind(this));
+  }.bind(this), obj);
 };
 
 /**
@@ -366,7 +384,7 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
     var len = keys.length, i = 0;
     while (len--) {
       var key = keys[i++];
-      var val = yield utils.co(self.resolveId(key));
+      var val = yield self.resolveId(key);
       str = str.split(key).join(val);
     }
     return str;
