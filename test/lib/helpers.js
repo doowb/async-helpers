@@ -2,13 +2,13 @@
 
 var helpers = {
   handlebars: {
-    upper: function upper (str) {
+    upper: function(str) {
       return str.toUpperCase();
     },
-    lower: function lower (str, options, cb) {
+    lower: function(str, options, cb) {
       cb(null, str.toLowerCase());
     },
-    spacer: function spacer (str, delim, options, cb) {
+    spacer: function(str, delim, options, cb) {
       if (typeof delim === 'object') {
         cb = options;
         options = delim;
@@ -16,18 +16,18 @@ var helpers = {
       }
       cb(null, str.split('').join(delim));
     },
-    block: function block (options) {
+    block: function(options) {
       return options.fn(this);
     }
   },
   lodash: {
-    upper: function upper (str) {
+    upper: function(str) {
       return str.toUpperCase();
     },
-    lower: function lower (str, cb) {
+    lower: function(str, cb) {
       cb(null, str.toLowerCase());
     },
-    spacer: function spacer (str, delim, cb) {
+    spacer: function(str, delim, cb) {
       if (typeof delim === 'function') {
         cb = delim;
         delim = ' ';

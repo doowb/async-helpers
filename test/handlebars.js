@@ -6,8 +6,8 @@ var assert = require('assert');
 var AsyncHelpers = require('../');
 var helpers = require('./lib/helpers').handlebars;
 
-describe('handlebars', function () {
-  it('should work in handlebars', function (done) {
+describe('handlebars', function() {
+  it('should work in handlebars', function(done) {
 
     var asyncHelpers = new AsyncHelpers();
 
@@ -42,7 +42,7 @@ describe('handlebars', function () {
     // render the template with a simple context object
     var rendered = fn({name: 'doowb'});
 
-    asyncHelpers.resolveIds(rendered, function (err, content) {
+    asyncHelpers.resolveIds(rendered, function(err, content) {
       if (err) return done(err);
       assert.deepEqual(content, [
         'input: doowb',

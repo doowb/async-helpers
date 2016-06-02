@@ -6,8 +6,8 @@ var assert = require('assert');
 var AsyncHelpers = require('../');
 var helpers = require('./lib/helpers').lodash;
 
-describe('lodash', function () {
-  it('should work in lodash', function (done) {
+describe('lodash', function() {
+  it('should work in lodash', function(done) {
 
     var asyncHelpers = new AsyncHelpers();
 
@@ -37,7 +37,7 @@ describe('lodash', function () {
     // render the compiled template with the simple context object
     var rendered = fn({name: 'doowb'});
 
-    asyncHelpers.resolveIds(rendered, function (err, content) {
+    asyncHelpers.resolveIds(rendered, function(err, content) {
       if (err) return done(err);
       assert.deepEqual(content, [
         'input: doowb',
