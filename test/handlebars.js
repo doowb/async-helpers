@@ -16,6 +16,7 @@ describe('handlebars', function() {
     asyncHelpers.set('lower', helpers.lower);
     asyncHelpers.set('spacer', helpers.spacer);
     asyncHelpers.set('block', helpers.block);
+    asyncHelpers.set('useHash', helpers.useHash);
 
     // pull the helpers back out and wrap them
     // with async handling functionality
@@ -30,7 +31,8 @@ describe('handlebars', function() {
       'spacer-delim: {{spacer name "-"}}',
       'lower(upper): {{lower (upper name)}}',
       'spacer(upper, lower): {{spacer (upper name) (lower "X")}}',
-      'block: {{#block}}{{upper name}}{{/block}}'
+      'block: {{#block}}{{upper name}}{{/block}}',
+      'useHash: {{#useHash me=(upper name)}}{{me}}{{/useHash}}'
     ].join('\n');
 
     // register the helpers with Handlebars
@@ -52,7 +54,8 @@ describe('handlebars', function() {
         'spacer-delim: d-o-o-w-b',
         'lower(upper): doowb',
         'spacer(upper, lower): DxOxOxWxB',
-        'block: DOOWB'
+        'block: DOOWB',
+        'useHash: DOOWB'
       ].join('\n'));
       done();
     });

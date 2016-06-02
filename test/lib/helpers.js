@@ -18,6 +18,9 @@ var helpers = {
     },
     block: function(options) {
       return options.fn(this);
+    },
+    useHash: function(options) {
+      return options.fn(options.hash || {});
     }
   },
   lodash: {
