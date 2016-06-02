@@ -23,7 +23,7 @@ var stash = {};
  * @api public
  */
 
-function AsyncHelpers (options) {
+function AsyncHelpers(options) {
   if (!(this instanceof AsyncHelpers)) {
     return new AsyncHelpers(options);
   }
@@ -48,7 +48,7 @@ AsyncHelpers.globalCounter = 0;
  * Add a helper to the cache.
  *
  * ```js
- * asyncHelpers.set('upper', function (str, cb) {
+ * asyncHelpers.set('upper', function(str, cb) {
  *   cb(null, str.toUpperCase());
  * });
  * ```
@@ -240,7 +240,7 @@ AsyncHelpers.prototype.reset = function() {
  * @api public
  */
 
-AsyncHelpers.prototype.resolveId = function* (key) {
+AsyncHelpers.prototype.resolveId = function*(key) {
   if (typeof key !== 'string') {
     throw new Error('AsyncHelpers#resolveId() expects `key` to be a string.');
   }
@@ -267,7 +267,7 @@ AsyncHelpers.prototype.resolveId = function* (key) {
       } else {
         return cb(err, '');
       }
-    }
+    };
 
     if (helper.fn.async) {
       args = args.concat(function(err, result) {
@@ -280,7 +280,7 @@ AsyncHelpers.prototype.resolveId = function* (key) {
     }
     try {
       res = helper.fn.apply(helper.thisArg, args);
-      if(re.test(res)) {
+      if (re.test(res)) {
         return self.resolveIds(res, done);
       }
     } catch (err) {
@@ -289,7 +289,7 @@ AsyncHelpers.prototype.resolveId = function* (key) {
     if (!helper.fn.async) {
       return done(null, res);
     }
-  }
+  };
 };
 
 /**
@@ -305,15 +305,15 @@ AsyncHelpers.prototype.resolveId = function* (key) {
  * @param {Object} `helper` helper object with an `argRefs` array.
  */
 
-AsyncHelpers.prototype.resolveArgs = function* (helper) {
+AsyncHelpers.prototype.resolveArgs = function*(helper) {
   var args = helper.args;
   var len = helper.argRefs.length, i = 0;
-  while(len--) {
+  while (len--) {
     var ref = helper.argRefs[i++];
     if (typeof ref.arg === 'string') {
       args[ref.idx] = yield utils.co(this.resolveId(ref.arg));
     } else {
-      var prefix = createPrefix(this.prefix, '(\\d)+')
+      var prefix = createPrefix(this.prefix, '(\\d)+');
       var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
       var hash = ref.arg.hash;
       var keys = Object.keys(hash);
@@ -357,14 +357,14 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   }
 
   var self = this;
-  var prefix = createPrefix(this.prefix, '(\\d)+')
+  var prefix = createPrefix(this.prefix, '(\\d)+');
   var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
   var keys = str.match(re);
-  utils.co(function* () {
+  utils.co(function*() {
     if (!keys) return str;
 
     var len = keys.length, i = 0;
-    while(len--) {
+    while (len--) {
       var key = keys[i++];
       var val = yield utils.co(self.resolveId(key));
       str = str.split(key).join(val);
@@ -390,16 +390,16 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
  */
 
 function formatError(err, helper, args) {
-  args = args.filter(function (arg) {
+  args = args.filter(function(arg) {
     if (!arg || typeof arg === 'function') {
       return false;
     }
     return true;
-  }).map(function (arg) {
+  }).map(function(arg) {
     return utils.stringify(arg);
   });
 
-  err.reason = '"' +  helper.name
+  err.reason = '"' + helper.name
     + '" helper cannot resolve: `'
     + args.join(', ') + '`';
   err.helper = helper;
