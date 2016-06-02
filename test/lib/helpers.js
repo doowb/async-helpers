@@ -21,6 +21,9 @@ var helpers = {
     },
     useHash: function(options) {
       return options.fn(options.hash || {});
+    },
+    lookup: function(obj, prop) {
+      return obj[prop];
     }
   },
   lodash: {

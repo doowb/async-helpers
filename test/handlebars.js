@@ -17,6 +17,7 @@ describe('handlebars', function() {
     asyncHelpers.set('spacer', helpers.spacer);
     asyncHelpers.set('block', helpers.block);
     asyncHelpers.set('useHash', helpers.useHash);
+    asyncHelpers.set('lookup', helpers.lookup);
 
     // pull the helpers back out and wrap them
     // with async handling functionality
@@ -32,7 +33,7 @@ describe('handlebars', function() {
       'lower(upper): {{lower (upper name)}}',
       'spacer(upper, lower): {{spacer (upper name) (lower "X")}}',
       'block: {{#block}}{{upper name}}{{/block}}',
-      'useHash: {{#useHash me=(upper name)}}{{me}}{{/useHash}}'
+      'useHash: {{#useHash me=(lookup this "person")}}{{me.first}} {{me.last}}{{/useHash}}'
     ].join('\n');
 
     // register the helpers with Handlebars
@@ -42,7 +43,7 @@ describe('handlebars', function() {
     var fn = Handlebars.compile(tmpl);
 
     // render the template with a simple context object
-    var rendered = fn({name: 'doowb'});
+    var rendered = fn({name: 'doowb', person: {first: 'Brian', last: 'Woodward'}});
 
     asyncHelpers.resolveIds(rendered, function(err, content) {
       if (err) return done(err);
@@ -55,7 +56,7 @@ describe('handlebars', function() {
         'lower(upper): doowb',
         'spacer(upper, lower): DxOxOxWxB',
         'block: DOOWB',
-        'useHash: DOOWB'
+        'useHash: Brian Woodward'
       ].join('\n'));
       done();
     });
