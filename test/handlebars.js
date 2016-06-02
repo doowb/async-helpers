@@ -52,7 +52,7 @@ describe('handlebars', function() {
         'spacer-delim: d-o-o-w-b',
         'lower(upper): doowb',
         'spacer(upper, lower): DxOxOxWxB',
-        'block: DOOWB',
+        'block: DOOWB'
       ].join('\n'));
       done();
     });

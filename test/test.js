@@ -58,7 +58,7 @@ describe('async-helpers', function() {
   it('should return an async id when wrapped', function() {
     var upper = function(str) {
       return str.toUpperCase();
-    }
+    };
     asyncHelpers.set('upper', upper);
     assert.deepEqual(asyncHelpers.get('upper', { wrap: true })('doowb'), '{$ASYNCID$0$0$}');
   });

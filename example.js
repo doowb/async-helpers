@@ -1,18 +1,17 @@
 'use strict';
 
-var async = require('async');
 var AsyncHelpers = require('./');
 
 // create a new instance of AsyncHelpers
 var asyncHelpers = new AsyncHelpers();
 
 // some simple sync helpers
-function upper (str) {
+function upper(str) {
   return str.toUpperCase();
 }
 
 // some simple async helpers
-function lower (str, options, cb) {
+function lower(str, options, cb) {
   // handle Handlebars or Lodash templates
   if (typeof options === 'function') {
     cb = options;
@@ -21,7 +20,7 @@ function lower (str, options, cb) {
   cb(null, str.toLowerCase());
 }
 
-function spacer (str, delim, options, cb) {
+function spacer(str, delim, options, cb) {
   // handle Handlebars or Lodash templates
   if (typeof delim === 'function') {
     cb = delim; options = {}; delim = ' ';
@@ -71,13 +70,13 @@ console.log('Handlebars rendered:');
 console.log(hbsRendered);
 console.log();
 
-resolve(hbsRendered, function (err, rendered) {
+resolve(hbsRendered, function(err, rendered) {
+  if (err) return console.error(err);
   // show the final rendered output after all async IDs have been resolved
   console.log('Handlebars resolved');
   console.log(rendered);
   console.log();
 });
-
 
 // using Lodash, render a template with helpers
 var _ = require('lodash');
@@ -102,14 +101,14 @@ console.log('lodash rendered:');
 console.log(_rendered);
 console.log();
 
-resolve(_rendered, function (err, rendered) {
+resolve(_rendered, function(err, rendered) {
+  if (err) return console.error(err);
   // show the final rendered output after all async IDs have been resolved
   console.log('lodash resolved');
   console.log(rendered);
   console.log();
 });
 
-
-function resolve (rendered, done) {
+function resolve(rendered, done) {
   asyncHelpers.resolveIds(rendered, done);
 }

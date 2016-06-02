@@ -37,7 +37,6 @@ var helpers = {
   }
 };
 
-
 // async helpers must have an `async` property
 helpers.handlebars.lower.async = true;
 helpers.handlebars.spacer.async = true;
