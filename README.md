@@ -117,7 +117,7 @@ co(asyncHelpers.resolveId(id))
 //=> DOOWB
 ```
 
-### [.resolveIds](index.js#L369)
+### [.resolveIds](index.js#L370)
 
 After rendering a string using wrapped async helpers, use `resolveIds` to invoke the original async helpers and replace the async ids with results from the async helpers.
 
@@ -139,10 +139,10 @@ asyncHelpers.resolveIds(renderedString, function(err, content) {
 
 You might also be interested in these projects:
 
+* [assemble](https://www.npmjs.com/package/assemble): Assemble is a powerful, extendable and easy to use static site generator for node.js. Used… [more](https://www.npmjs.com/package/assemble) | [homepage](https://github.com/assemble/assemble)
 * [co](https://www.npmjs.com/package/co): generator async control flow goodness | [homepage](https://github.com/tj/co)
 * [generate](https://www.npmjs.com/package/generate): Fast, composable, highly pluggable project generator with a user-friendly and expressive API. | [homepage](https://github.com/generate/generate)
 * [templates](https://www.npmjs.com/package/templates): System for creating and managing template collections, and rendering templates with any node.js template engine.… [more](https://www.npmjs.com/package/templates) | [homepage](https://github.com/jonschlinkert/templates)
-* [assemble](https://www.npmjs.com/package/assemble): Assemble is a powerful, extendable and easy to use static site generator for node.js. Used… [more](https://www.npmjs.com/package/assemble) | [homepage](https://github.com/assemble/assemble)
 * [verb](https://www.npmjs.com/package/verb): Documentation generator for GitHub projects. Verb is extremely powerful, easy to use, and is used… [more](https://www.npmjs.com/package/verb) | [homepage](https://github.com/verbose/verb)
 
 ## Contributing
