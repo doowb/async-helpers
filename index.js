@@ -343,8 +343,9 @@ AsyncHelpers.prototype.resolveObject = function*(obj) {
       var val = acc[key];
       if (typeof val !== 'string' || !re.test(val)) {
         acc[key] = val;
+      } else {
+        acc[key] = yield this.resolveId(val);
       }
-      acc[key] = yield this.resolveId(val);
       return acc;
     }.bind(this));
   }.bind(this), obj);
