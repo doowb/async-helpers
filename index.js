@@ -7,7 +7,16 @@
 
 'use strict';
 
-var utils = require('./utils');
+var typeOf = require('kind-of');
+var stringify = require('safe-json-stringify');
+var define = require('define-property');
+var extend = require('extend-shallow');
+var co = require('co');
+
+/**
+ * Caches
+ */
+
 var cache = {};
 var stash = {};
 
@@ -27,18 +36,26 @@ function AsyncHelpers(options) {
   if (!(this instanceof AsyncHelpers)) {
     return new AsyncHelpers(options);
   }
-  options = options || {};
-  this.options = options;
-  this.prefix = options.prefix || '{$ASYNCID$';
+  this.options = extend({}, options);
+  this.prefix = this.options.prefix || '{$ASYNCID$';
+  this.globalCounter = AsyncHelpers.globalCounter++;
   this.helpers = {};
   this.counter = 0;
-  this.globalCounter = AsyncHelpers.globalCounter++;
+
+  Object.defineProperty(this, 'prefixRegx', {
+    configurable: true,
+    set: function(regex) {
+      define(this, '_re', regex);
+    },
+    get: function() {
+      return this._re || (this._re = toRegex(this.prefix, 'g'));
+    }
+  });
 }
 
 /**
  * Keep track of instances created for generating globally
  * unique ids
- *
  * @type {Number}
  */
 
@@ -60,10 +77,27 @@ AsyncHelpers.globalCounter = 0;
  */
 
 AsyncHelpers.prototype.set = function(name, fn) {
-  if (typeof name !== 'string') {
-    throw new TypeError('AsyncHelpers#set expects `name` to be a string.');
+  if (isObject(name)) {
+    return this.visit('set', name);
   }
+
+  if (typeof name !== 'string') {
+    throw new TypeError('AsyncHelpers#set: expected `name` to be a string');
+  }
+  if (typeof fn !== 'function') {
+    throw new TypeError('AsyncHelpers#set: expected `fn` to be a function');
+  }
+
   this.helpers[name] = fn;
+  return this;
+};
+
+AsyncHelpers.prototype.visit = function(method, obj, options) {
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      this[method](key, obj[key], options);
+    }
+  }
   return this;
 };
 
@@ -82,104 +116,12 @@ AsyncHelpers.prototype.set = function(name, fn) {
  * @api public
  */
 
-AsyncHelpers.prototype.get = function(name, opts) {
-  if (name == null) {
-    throw new TypeError('AsyncHelpers#get expects a string or object.');
+AsyncHelpers.prototype.get = function(helper, options) {
+  if (typeof helper === 'string') {
+    return this.wrapHelper(helper, options);
   }
-
-  if (typeof name === 'object') {
-    opts = name;
-    name = null;
-  }
-
-  opts = opts || {};
-  if (opts.wrap) {
-    return this.wrap(name);
-  }
-
-  return typeof name === 'string'
-    ? this.helpers[name]
-    : this.helpers;
+  return this.wrapHelpers(this.helpers, helper);
 };
-
-/**
- * Wrap a helper or object of helpers with an async handler function.
- *
- * @param  {String|Object} `name` Helper or object of helpers
- * @return {Object} Wrapped helper(s)
- */
-
-function wrap(name) {
-  if (name == null) {
-    throw new TypeError('async-helpers wrap expects a string or object.');
-  }
-  var helper = this.helpers[name];
-  if (typeof helper === 'object') {
-    for (var key in helper) {
-      if (helper[key].wrapped !== true) {
-        helper[key] = wrapper(key, helper[key], this);
-      }
-    }
-    return helper;
-  } else {
-    if (helper.wrapped === true) {
-      return helper;
-    }
-    return wrapper(name, helper, this);
-  }
-}
-
-/**
- * Returns a wrapper function for a single helper.
- *
- * @param  {String} `name` The name of the helper
- * @param  {Function} `fn` The actual helper function
- * @param  {Object} `thisArg` Context
- * @return {String} Returns an async ID to use for resolving the value. ex: `{$ASYNCID$!$8$}`
- */
-
-function wrapper(name, fn, thisArg) {
-  var prefix = createPrefix(thisArg.prefix, thisArg.globalCounter);
-
-  function wrapped() {
-    var argRefs = [];
-    var len = arguments.length;
-    var args = new Array(len);
-
-    for (var i = len - 1; i >= 0; i--) {
-      var re = new RegExp(createRegExp(prefix), 'g');
-      var arg = args[i] = arguments[i];
-
-      // store references to other async helpers (string === '__async_0_1')
-      if (typeof arg === 'string' && re.test(arg)) {
-        argRefs.push({arg: arg, idx: i});
-      }
-      if (typeof arg === 'object' && typeof arg.hash === 'object') {
-        argRefs.push({arg: arg, idx: i});
-      }
-    }
-
-    // generate a unique ID for the wrapped helper
-    var id = createId(prefix, thisArg.counter++);
-    var obj = {
-      id: id,
-      name: name,
-      fn: fn,
-      args: args,
-      argRefs: argRefs,
-      thisArg: this
-    };
-
-    stash[obj.id] = obj;
-    return obj.id;
-  }
-  Object.defineProperty(wrapped, 'wrapped', {
-    configurable: true,
-    enumerable: false,
-    value: true
-  });
-  return wrapped;
-}
 
 /**
  * Wrap a helper with async handling capibilities.
@@ -189,19 +131,96 @@ function wrapper(name, fn, thisArg) {
  * var wrappedHelpers = asyncHelpers.wrap();
  * ```
  *
- * @param  {String} `name` Optionally pass the name of the helper to wrap
+ * @param  {String} `helper` Optionally pass the name of the helper to wrap
  * @return {Function|Object} Single wrapped helper function when `name` is provided, otherwise object of all wrapped helpers.
  * @api public
  */
 
-AsyncHelpers.prototype.wrap = function(name) {
-  if (name) return wrap.call(this, name);
-
-  var res = {};
-  for (var key in this.helpers) {
-    res[key] = this.wrap(key);
+AsyncHelpers.prototype.wrapHelper = function(helper, options) {
+  if (isObject(helper)) {
+    options = helper;
+    helper = null;
   }
-  return res;
+
+  var type = typeOf(helper);
+  switch (type) {
+    case 'string':
+      return this.wrapHelper(this.helpers[helper], options);
+    case 'object':
+      return this.wrapHelpers(helper, options);
+    case 'function':
+      if (helper.wrapped === true) {
+        return helper;
+      }
+
+      var opts = extend({}, this.options, options);
+      if (opts.wrap) {
+        return this.wrapper(helper, helper, this);
+      }
+
+      return helper;
+    default: {
+      throw new TypeError('AsyncHelpers.wrapHelper: unsupported type: ' + type);
+    }
+  }
+};
+
+/**
+ * Wrap an object of helpers to enable async handling
+ * @param  {Object} `helpers`
+ * @param  {Object} `options`
+ */
+
+AsyncHelpers.prototype.wrapHelpers = function(helpers, options) {
+  if (!isObject(helpers)) {
+    throw new TypeError('expected helpers to be an object');
+  }
+
+  for (var key in helpers) {
+    if (helpers.hasOwnProperty(key)) {
+      var helper = helpers[key];
+      if (typeof helper.wrapped !== 'boolean') {
+        helpers[key] = this.wrapHelper(key, options);
+      }
+    }
+  }
+  return helpers;
+};
+
+/**
+ * Returns a wrapper function for a single helper.
+ * @param  {String} `name` The name of the helper
+ * @param  {Function} `fn` The actual helper function
+ * @param  {Object} `context` Context
+ * @return {String} Returns an async ID to use for resolving the value. ex: `{$ASYNCID$!$8$}`
+ */
+
+AsyncHelpers.prototype.wrapper = function(name, fn) {
+  var prefix = appendPrefix(this.prefix, this.globalCounter);
+  var self = this;
+
+  // wrap the helper and generate a unique ID for resolving it
+  function wrapper() {
+    var num = self.counter++;
+    var id = createId(prefix, num);
+
+    var token = {
+      name: name,
+      prefix: prefix,
+      num: num,
+      id: id,
+      fn: fn,
+      args: [].slice.call(arguments)
+    };
+
+    define(token, 'context', this);
+    stash[id] = token;
+    return id;
+  }
+
+  define(wrapper, 'wrapped', true);
+  wrapper.helperName = name;
+  return wrapper;
 };
 
 /**
@@ -210,7 +229,6 @@ AsyncHelpers.prototype.wrap = function(name) {
  * ```js
  * asyncHelpers.reset();
  * ```
- *
  * @return {Object} Returns `this` to enable chaining
  * @api public
  */
@@ -219,6 +237,24 @@ AsyncHelpers.prototype.reset = function() {
   stash = {};
   this.counter = 0;
   return this;
+};
+
+/**
+ * Get all matching ids from the given `str`
+ * @return {Array} Returns an array of matching ids
+ */
+
+AsyncHelpers.prototype.matches = function(str) {
+  return str.match(this.prefixRegx);
+};
+
+/**
+ * Returns true if the given string has an async helper id
+ * @return {Boolean}
+ */
+
+AsyncHelpers.prototype.hasAsyncId = function(str) {
+  return this.prefixRegx.test(str);
 };
 
 /**
@@ -240,55 +276,71 @@ AsyncHelpers.prototype.reset = function() {
  * @api public
  */
 
-AsyncHelpers.prototype.resolveId = function*(key) {
+AsyncHelpers.prototype.resolveId = function * (key) {
   if (typeof key !== 'string') {
-    throw new Error('AsyncHelpers#resolveId() expects `key` to be a string.');
-  }
-  var self = this;
-  var prefix = createPrefix(this.prefix, this.globalCounter);
-  var re = cache[prefix] || (cache[prefix] = new RegExp(createRegExp(prefix)));
-  var helper = stash[key];
-  if (!helper) {
-    throw new Error('Unable to resolve ' + key + '. Not Found');
+    throw new Error('AsyncHelpers#resolveId: expects `key` to be a string.');
   }
 
-  var res;
+  var helper = stash[key];
+  if (!helper) {
+    throw new Error('AsyncHelpers#resolveId: cannot resolve helper: "' + key + '"');
+  }
+
   var args = yield this.resolveArgs(helper);
+  var self = this;
+  var str;
 
   return yield function(cb) {
     if (typeof helper.fn !== 'function') {
-      return cb(null, helper.fn);
+      cb(null, helper.fn);
+      return;
     }
 
-    var done = function(err, val) {
+    var next = function(err, val) {
       if (typeof val !== 'undefined') {
         helper.fn = val;
-        return cb(err, helper.fn);
-      } else {
-        return cb(err, '');
+        cb(err, helper.fn);
+        return;
       }
+      cb(err, '');
+      return;
     };
 
     if (helper.fn.async) {
-      args = args.concat(function(err, result) {
-        if (err) return done(formatError(err, helper, args));
-        if (re.test(result)) {
-          return self.resolveIds(result, done);
+      var callback = function(err, result) {
+        if (err) {
+          next(formatError(err, helper, args));
+          return;
         }
-        return done(null, result);
-      });
+
+        if (self.hasAsyncId(result)) {
+          self.resolveIds(result, next);
+          return;
+        }
+        next(null, result);
+        return;
+      };
+
+      args.push(callback);
     }
+
     try {
-      res = helper.fn.apply(helper.thisArg, args);
-      if (re.test(res)) {
-        return self.resolveIds(res, done);
+      str = helper.fn.apply(helper.context, args);
+      if (self.hasAsyncId(str)) {
+        self.resolveIds(str, next);
+        return;
       }
     } catch (err) {
-      return done(formatError(err, helper, args));
+      next(formatError(err, helper, args));
+      return;
     }
+
     if (!helper.fn.async) {
-      return done(null, res);
+      next(null, str);
+      return;
     }
+
+    // do nothing
   };
 };
 
@@ -305,18 +357,19 @@ AsyncHelpers.prototype.resolveId = function*(key) {
  * @param {Object} `helper` helper object with an `argRefs` array.
  */
 
-AsyncHelpers.prototype.resolveArgs = function*(helper) {
-  var args = helper.args;
-  var len = helper.argRefs.length, i = 0;
-  while (len--) {
-    var ref = helper.argRefs[i++];
-    if (typeof ref.arg === 'string') {
-      args[ref.idx] = yield this.resolveId(ref.arg);
-    } else {
-      ref.arg.hash = yield this.resolveObject(ref.arg.hash);
+AsyncHelpers.prototype.resolveArgs = function * (helper) {
+  for (var i = 0; i < helper.args.length; i++) {
+    var arg = helper.args[i];
+    if (!arg) continue;
+
+    if (typeof arg === 'string' && this.hasAsyncId(arg)) {
+      helper.args[i] = yield this.resolveId(arg);
+
+    } else if (isObject(arg) && isObject(arg.hash)) {
+      arg.hash = yield this.resolveObject(arg.hash);
     }
   }
-  return args;
+  return helper.args;
 };
 
 /**
@@ -333,22 +386,19 @@ AsyncHelpers.prototype.resolveArgs = function*(helper) {
  * @returns {Object} Object with resolved values.
  */
 
-AsyncHelpers.prototype.resolveObject = function*(obj) {
-  var prefix = createPrefix(this.prefix, '(\\d)+');
-  var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
-
+AsyncHelpers.prototype.resolveObject = function * (obj) {
   var keys = Object.keys(obj);
+  var self = this;
+
   return yield keys.reduce(function(acc, key) {
-    return utils.co(function*() {
+    return co(function * () {
       var val = acc[key];
-      if (typeof val !== 'string' || !re.test(val)) {
-        acc[key] = val;
-      } else {
-        acc[key] = yield this.resolveId(val);
+      if (typeof val === 'string' && self.hasAsyncId(val)) {
+        acc[key] = yield self.resolveId(val);
       }
       return acc;
-    }.bind(this));
-  }.bind(this), obj);
+    });
+  }, obj);
 };
 
 /**
@@ -375,16 +425,13 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
     return cb(new TypeError('AsyncHelpers#resolveIds() expects a string.'));
   }
 
+  var matches = this.matches(str);
   var self = this;
-  var prefix = createPrefix(this.prefix, '(\\d)+');
-  var re = cache[prefix] || (cache[prefix] = new RegExp('(' + createRegExp(prefix) + ')', 'g'));
-  var keys = str.match(re);
-  utils.co(function*() {
-    if (!keys) return str;
 
-    var len = keys.length, i = 0;
-    while (len--) {
-      var key = keys[i++];
+  co(function * () {
+    if (!matches) return str;
+    for (var i = 0; i < matches.length; i++) {
+      var key = matches[i];
       var val = yield self.resolveId(key);
       str = str.split(key).join(val);
     }
@@ -393,9 +440,7 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   .then(function(res) {
     cb(null, res);
   })
-  .catch(function(err) {
-    cb(err);
-  });
+  .catch(cb);
 };
 
 /**
@@ -415,12 +460,13 @@ function formatError(err, helper, args) {
     }
     return true;
   }).map(function(arg) {
-    return utils.stringify(arg);
+    return stringify(arg);
   });
 
   err.reason = '"' + helper.name
     + '" helper cannot resolve: `'
     + args.join(', ') + '`';
+
   err.helper = helper;
   err.args = args;
   return err;
@@ -434,7 +480,7 @@ function formatError(err, helper, args) {
  * @return {String} new prefix
  */
 
-function createPrefix(prefix, counter) {
+function appendPrefix(prefix, counter) {
   return prefix + counter + '$';
 }
 
@@ -451,19 +497,40 @@ function createId(prefix, counter) {
 }
 
 /**
+ * Create a regular expression based on the given `prefix`.
+ * @param  {String} `prefix`
+ * @return {RegExp}
+ */
+
+function toRegex(prefix, flags) {
+  var key = appendPrefix(prefix, '(\\d)+');
+  if (cache.hasOwnProperty(key)) {
+    return cache[key];
+  }
+
+  var regex = new RegExp('(' + createRegexString(key) + ')', flags);
+  cache[key] = regex;
+  return regex;
+}
+
+/**
  * Create a string to pass into `RegExp` for checking for and finding async ids.
- *
  * @param  {String} `prefix` prefix to use for the first part of the regex
  * @return {String} string to pass into `RegExp`
  */
 
-function createRegExp(prefix) {
-  var key = 'prefix:' + prefix;
-  if (cache[key]) {
+function createRegexString(prefix) {
+  var key = 'createRegexString:' + prefix;
+  if (cache.hasOwnProperty(key)) {
     return cache[key];
   }
-  var res = prefix.split('$').join('\\\$') + '(\\d)+\\$}';
-  return (cache[key] = res);
+  var str = prefix.split('$').join('\\$') + '(\\d)+\\$}';
+  cache[key] = str;
+  return str;
+}
+
+function isObject(val) {
+  return typeOf(val) === 'object';
 }
 
 /**
@@ -471,3 +538,4 @@ function createRegExp(prefix) {
  */
 
 module.exports = AsyncHelpers;
+

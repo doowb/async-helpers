@@ -1,10 +1,9 @@
 'use strict';
 
-var _ = require('lodash');
 var assert = require('assert');
-
+var _ = require('lodash');
+var helpers = require('./support/helpers').lodash;
 var AsyncHelpers = require('../');
-var helpers = require('./lib/helpers').lodash;
 
 describe('lodash', function() {
   it('should work in lodash', function(done) {

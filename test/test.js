@@ -1,6 +1,6 @@
 'use strict';
 
-/* deps:mocha */
+require('mocha');
 var assert = require('assert');
 var co = require('co');
 var AsyncHelpers = require('../');

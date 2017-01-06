@@ -22,15 +22,21 @@
   },
   "dependencies": {
     "co": "^4.6.0",
-    "lazy-cache": "^1.0.3",
+    "define-property": "^0.2.5",
+    "extend-shallow": "^2.0.1",
+    "kind-of": "^3.1.0",
     "safe-json-stringify": "^1.0.3"
   },
   "devDependencies": {
     "async": "^1.5.2",
+    "gulp": "^3.9.1",
+    "gulp-eslint": "^3.0.1",
     "gulp-format-md": "^0.1.7",
+    "gulp-istanbul": "^1.1.1",
+    "gulp-mocha": "^3.0.1",
     "handlebars": "^4.0.5",
     "lodash": "^4.6.1",
-    "mocha": "*"
+    "mocha": "^3.2.0"
   },
   "keywords": [
     "async",
