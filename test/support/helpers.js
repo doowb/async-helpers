@@ -8,6 +8,12 @@ var helpers = {
     lower: function(str, options, cb) {
       cb(null, str.toLowerCase());
     },
+    is: function(val, options, cb) {
+      cb(null, val === true);
+    },
+    equals: function(a, b, options, cb) {
+      cb(null, a == b);
+    },
     spacer: function(str, delim, options, cb) {
       if (typeof delim === 'object') {
         cb = options;
@@ -44,6 +50,8 @@ var helpers = {
 };
 
 // async helpers must have an `async` property
+helpers.handlebars.is.async = true;
+helpers.handlebars.equals.async = true;
 helpers.handlebars.lower.async = true;
 helpers.handlebars.spacer.async = true;
 helpers.lodash.lower.async = true;
