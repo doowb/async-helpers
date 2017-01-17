@@ -60,6 +60,8 @@ function AsyncHelpers(options) {
  */
 
 AsyncHelpers.globalCounter = 0;
+AsyncHelpers.cache = cache;
+AsyncHelpers.stash = stash;
 
 /**
  * Add a helper to the cache.
@@ -78,7 +80,12 @@ AsyncHelpers.globalCounter = 0;
 
 AsyncHelpers.prototype.set = function(name, fn) {
   if (isObject(name)) {
-    return this.visit('set', name);
+    for (var key in name) {
+      if (name.hasOwnProperty(key)) {
+        this.set(key, name[key], this.options);
+      }
+    }
+    return this;
   }
 
   if (typeof name !== 'string') {
@@ -89,15 +96,6 @@ AsyncHelpers.prototype.set = function(name, fn) {
   }
 
   this.helpers[name] = fn;
-  return this;
-};
-
-AsyncHelpers.prototype.visit = function(method, obj, options) {
-  for (var key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      this[method](key, obj[key], options);
-    }
-  }
   return this;
 };
 
@@ -149,6 +147,10 @@ AsyncHelpers.prototype.wrapHelper = function(helper, options) {
     case 'object':
       return this.wrapHelpers(helper, options);
     case 'function':
+      if (isHelperGroup(helper)) {
+        helper = this.wrapHelpers(helper, options);
+      }
+
       if (helper.wrapped === true) {
         return helper;
       }
@@ -172,14 +174,14 @@ AsyncHelpers.prototype.wrapHelper = function(helper, options) {
  */
 
 AsyncHelpers.prototype.wrapHelpers = function(helpers, options) {
-  if (!isObject(helpers)) {
+  if (!isObject(helpers) && isHelperGroup(helpers)) {
     throw new TypeError('expected helpers to be an object');
   }
 
   for (var key in helpers) {
     if (helpers.hasOwnProperty(key)) {
       var helper = helpers[key];
-      if (typeof helper.wrapped !== 'boolean') {
+      if (helper.wrapped !== true) {
         helpers[key] = this.wrapHelper(key, options);
       }
     }
@@ -206,6 +208,7 @@ AsyncHelpers.prototype.wrapper = function(name, fn) {
 
     var token = {
       name: name,
+      async: !!fn.async,
       prefix: prefix,
       num: num,
       id: id,
@@ -219,7 +222,7 @@ AsyncHelpers.prototype.wrapper = function(name, fn) {
   }
 
   define(wrapper, 'wrapped', true);
-  wrapper.helperName = name;
+  define(wrapper, 'helperName', name);
   return wrapper;
 };
 
@@ -493,7 +496,7 @@ function appendPrefix(prefix, counter) {
  */
 
 function createId(prefix, counter) {
-  return prefix + counter + '$}';
+  return appendPrefix(prefix, counter) + '}';
 }
 
 /**
@@ -502,13 +505,18 @@ function createId(prefix, counter) {
  * @return {RegExp}
  */
 
-function toRegex(prefix, flags) {
+function toRegex(prefix, flags, options) {
   var key = appendPrefix(prefix, '(\\d)+');
   if (cache.hasOwnProperty(key)) {
     return cache[key];
   }
 
-  var regex = new RegExp('(' + createRegexString(key) + ')', flags);
+  if (typeof flags !== 'string') {
+    options = flags;
+    flags = undefined;
+  }
+
+  var regex = new RegExp(createRegexString(key, options), flags);
   cache[key] = regex;
   return regex;
 }
@@ -519,15 +527,40 @@ function toRegex(prefix, flags) {
  * @return {String} string to pass into `RegExp`
  */
 
-function createRegexString(prefix) {
+function createRegexString(prefix, options) {
   var key = 'createRegexString:' + prefix;
   if (cache.hasOwnProperty(key)) {
     return cache[key];
   }
-  var str = prefix.split('$').join('\\$') + '(\\d)+\\$}';
+  options = options || {};
+  var str = '\\' + prefix.split(/\\?\$/).join('\\$') + '(\\d)+\\$\\}';
+  if (options.strict) {
+    str = '^' + str + '$';
+  }
   cache[key] = str;
   return str;
 }
+
+/**
+ * Return true if the given value is a helper "group"
+ */
+
+function isHelperGroup(helpers) {
+  if (!helpers) return false;
+  if (typeof helpers === 'function' || isObject(helpers)) {
+    var len = Object.keys(helpers).length;
+    var min = helpers.async ? 1 : 0;
+    return helpers.isGroup === true || len > min;
+  }
+  if (Array.isArray(helpers)) {
+    return helpers.isGroup === true;
+  }
+  return false;
+}
+
+/**
+ * Return true if the given value is an object
+ */
 
 function isObject(val) {
   return typeOf(val) === 'object';
