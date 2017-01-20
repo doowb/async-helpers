@@ -104,7 +104,7 @@ AsyncHelpers.prototype.set = function(name, fn) {
  *
  * ```js
  * var helpers = asyncHelpers.get();
- * var wrappedHelpers = helperAync.get({wrap: true});
+ * var wrappedHelpers = asyncHelpers.get({wrap: true});
  * ```
  *
  * @param  {String} `name` Optionally pass in a name of a helper to get.
@@ -429,10 +429,13 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   }
 
   var matches = this.matches(str);
-  var self = this;
+  if (!matches) {
+    cb(null, str);
+    return;
+  };
 
+  var self = this;
   co(function * () {
-    if (!matches) return str;
     for (var i = 0; i < matches.length; i++) {
       var key = matches[i];
       var val = yield self.resolveId(key);
