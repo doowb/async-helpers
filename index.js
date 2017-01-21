@@ -82,7 +82,7 @@ AsyncHelpers.prototype.set = function(name, fn) {
   if (isObject(name)) {
     for (var key in name) {
       if (name.hasOwnProperty(key)) {
-        this.set(key, name[key], this.options);
+        this.set(key, name[key]);
       }
     }
     return this;
@@ -137,8 +137,9 @@ AsyncHelpers.prototype.get = function(helper, options) {
 AsyncHelpers.prototype.wrapHelper = function(helper, options) {
   if (isObject(helper)) {
     options = helper;
-    helper = null;
+    helper = this.helpers;
   }
+  helper = helper || this.helpers;
 
   var type = typeOf(helper);
   switch (type) {
