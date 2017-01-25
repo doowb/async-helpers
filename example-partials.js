@@ -60,6 +60,7 @@ function invokePartialWrapper(partial, context, options) {
     options.partials[options.name] = env.compile(partial, options);
     result = options.partials[options.name](context, options);
   }
+
   if (result != null) {
     if (options.indent) {
       let lines = result.split('\n');
@@ -73,14 +74,14 @@ function invokePartialWrapper(partial, context, options) {
       result = lines.join('\n');
     }
     return result;
-  } else {
-    throw new Exception('The partial ' + options.name + ' could not be compiled when running in runtime-only mode');
   }
+
+  throw new Exception('The partial ' + options.name + ' could not be compiled when running in runtime-only mode');
 }
 
 function __async_helpers_invokePartial(partial, context, options, cb) {
   var id = options.name;
-  console.log(options);
+  // console.log(options);
   asyncHelpers.resolveIds(id, function(err, name) {
     if (err) return cb(err);
     options.name = name;
@@ -164,6 +165,7 @@ var hbs = [
   'spacer-delim: {{spacer name "-"}}',
   'lower(upper): {{lower (upper name)}}',
   'spacer(upper, lower): {{spacer (upper name) (lower "X")}}',
+  '  {{> (lower "ANOTHER-PARTIAL") }}',
   '  {{> another-partial }}',
   '  {{> (partialName) }}',
 ].join('\n');
@@ -181,14 +183,14 @@ var hbsFn = Handlebars.compile(hbs);
 var hbsRendered = hbsFn({name: 'brian'});
 
 // rendered output will contain async IDs that need to be replaced
-console.log('Handlebars rendered:');
+console.log('Handlebars rendered (can have id):');
 console.log(hbsRendered);
 console.log();
 
 resolve(hbsRendered, function(err, rendered) {
   if (err) return console.error(err);
   // show the final rendered output after all async IDs have been resolved
-  console.log('Handlebars resolved');
+  console.log('Handlebars resolved (should not have id)');
   console.log(rendered);
   console.log();
 });

@@ -5,8 +5,22 @@ var helpers = {
     upper: function(str) {
       return str.toUpperCase();
     },
+    getPartial: function(str, options, cb) {
+      var args = [].slice.call(arguments);
+      cb = args.pop();
+      cb(null, str);
+    },
     lower: function(str, options, cb) {
       cb(null, str.toLowerCase());
+    },
+    partialName: function partialName(options, cb) {
+      cb(null, this.customName || options.hash.name)
+    },
+    is: function(val, options, cb) {
+      cb(null, val === true);
+    },
+    equals: function(a, b, options, cb) {
+      cb(null, a == b);
     },
     spacer: function(str, delim, options, cb) {
       if (typeof delim === 'object') {
@@ -44,6 +58,8 @@ var helpers = {
 };
 
 // async helpers must have an `async` property
+helpers.handlebars.is.async = true;
+helpers.handlebars.equals.async = true;
 helpers.handlebars.lower.async = true;
 helpers.handlebars.spacer.async = true;
 helpers.lodash.lower.async = true;

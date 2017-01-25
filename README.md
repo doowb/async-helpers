@@ -1,13 +1,13 @@
-# async-helpers [![NPM version](https://img.shields.io/npm/v/async-helpers.svg?style=flat)](https://www.npmjs.com/package/async-helpers) [![NPM downloads](https://img.shields.io/npm/dm/async-helpers.svg?style=flat)](https://npmjs.org/package/async-helpers) [![Build Status](https://img.shields.io/travis/doowb/async-helpers.svg?style=flat)](https://travis-ci.org/doowb/async-helpers)
+# async-helpers [![NPM version](https://img.shields.io/npm/v/async-helpers.svg?style=flat)](https://www.npmjs.com/package/async-helpers) [![NPM monthly downloads](https://img.shields.io/npm/dm/async-helpers.svg?style=flat)](https://npmjs.org/package/async-helpers)  [![NPM total downloads](https://img.shields.io/npm/dt/async-helpers.svg?style=flat)](https://npmjs.org/package/async-helpers) [![Linux Build Status](https://img.shields.io/travis/doowb/async-helpers.svg?style=flat&label=Travis)](https://travis-ci.org/doowb/async-helpers) [![Windows Build Status](https://img.shields.io/appveyor/ci/doowb/async-helpers.svg?style=flat&label=AppVeyor)](https://ci.appveyor.com/project/doowb/async-helpers)
 
-Use async helpers in templates with engines that typically only handle sync helpers. Handlebars and Lodash have been tested.
+> Use async helpers in templates with engines that typically only handle sync helpers. Handlebars and Lodash have been tested.
 
 ## Install
 
 Install with [npm](https://www.npmjs.com/):
 
 ```sh
-$ npm install async-helpers --save
+$ npm install --save async-helpers
 ```
 
 ## Usage
@@ -18,7 +18,7 @@ var asyncHelpers = require('async-helpers');
 
 ## API
 
-### [AsyncHelpers](index.js#L26)
+### [AsyncHelpers](index.js#L35)
 
 Create a new instance of AsyncHelpers
 
@@ -33,7 +33,7 @@ Create a new instance of AsyncHelpers
 var asyncHelpers = new AsyncHelpers();
 ```
 
-### [.set](index.js#L62)
+### [.set](index.js#L79)
 
 Add a helper to the cache.
 
@@ -51,7 +51,7 @@ asyncHelpers.set('upper', function(str, cb) {
 });
 ```
 
-### [.get](index.js#L85)
+### [.get](index.js#L115)
 
 Get all helpers or a helper with the given name.
 
@@ -68,13 +68,13 @@ var helpers = asyncHelpers.get();
 var wrappedHelpers = helperAync.get({wrap: true});
 ```
 
-### [.wrap](index.js#L197)
+### [.wrapHelper](index.js#L135)
 
 Wrap a helper with async handling capibilities.
 
 **Params**
 
-* `name` **{String}**: Optionally pass the name of the helper to wrap
+* `helper` **{String}**: Optionally pass the name of the helper to wrap
 * `returns` **{Function|Object}**: Single wrapped helper function when `name` is provided, otherwise object of all wrapped helpers.
 
 **Example**
@@ -84,7 +84,7 @@ var wrappedHelper = asyncHelpers.wrap('upper');
 var wrappedHelpers = asyncHelpers.wrap();
 ```
 
-### [.reset](index.js#L218)
+### [.reset](index.js#L236)
 
 Reset all the stashed helpers.
 
@@ -96,7 +96,7 @@ Reset all the stashed helpers.
 asyncHelpers.reset();
 ```
 
-### [.resolveId](index.js#L243)
+### [.resolveId](index.js#L279)
 
 Resolve a stashed helper by the generated id. This is a generator function and should be used with [co](https://github.com/tj/co)
 
@@ -117,7 +117,7 @@ co(asyncHelpers.resolveId(id))
 //=> DOOWB
 ```
 
-### [.resolveIds](index.js#L370)
+### [.resolveIds](index.js#L420)
 
 After rendering a string using wrapped async helpers, use `resolveIds` to invoke the original async helpers and replace the async ids with results from the async helpers.
 
@@ -135,35 +135,39 @@ asyncHelpers.resolveIds(renderedString, function(err, content) {
 });
 ```
 
-## Related projects
+## About
 
-You might also be interested in these projects:
+### Related projects
 
-* [assemble](https://www.npmjs.com/package/assemble): Assemble is a powerful, extendable and easy to use static site generator for node.js. Used… [more](https://www.npmjs.com/package/assemble) | [homepage](https://github.com/assemble/assemble)
-* [co](https://www.npmjs.com/package/co): generator async control flow goodness | [homepage](https://github.com/tj/co)
-* [generate](https://www.npmjs.com/package/generate): Fast, composable, highly pluggable project generator with a user-friendly and expressive API. | [homepage](https://github.com/generate/generate)
-* [templates](https://www.npmjs.com/package/templates): System for creating and managing template collections, and rendering templates with any node.js template engine.… [more](https://www.npmjs.com/package/templates) | [homepage](https://github.com/jonschlinkert/templates)
-* [verb](https://www.npmjs.com/package/verb): Documentation generator for GitHub projects. Verb is extremely powerful, easy to use, and is used… [more](https://www.npmjs.com/package/verb) | [homepage](https://github.com/verbose/verb)
+* [assemble](https://www.npmjs.com/package/assemble): Get the rocks out of your socks! Assemble makes you fast at creating web projects… [more](https://github.com/assemble/assemble) | [homepage](https://github.com/assemble/assemble "Get the rocks out of your socks! Assemble makes you fast at creating web projects. Assemble is used by thousands of projects for rapid prototyping, creating themes, scaffolds, boilerplates, e-books, UI components, API documentation, blogs, building websit")
+* [co](https://www.npmjs.com/package/co): generator async control flow goodness | [homepage](https://github.com/tj/co#readme "generator async control flow goodness")
+* [generate](https://www.npmjs.com/package/generate): Command line tool and developer framework for scaffolding out new GitHub projects. Generate offers the… [more](https://github.com/generate/generate) | [homepage](https://github.com/generate/generate "Command line tool and developer framework for scaffolding out new GitHub projects. Generate offers the robustness and configurability of Yeoman, the expressiveness and simplicity of Slush, and more powerful flow control and composability than either.")
+* [templates](https://www.npmjs.com/package/templates): System for creating and managing template collections, and rendering templates with any node.js template engine… [more](https://github.com/jonschlinkert/templates) | [homepage](https://github.com/jonschlinkert/templates "System for creating and managing template collections, and rendering templates with any node.js template engine. Can be used as the basis for creating a static site generator or blog framework.")
+* [verb](https://www.npmjs.com/package/verb): Documentation generator for GitHub projects. Verb is extremely powerful, easy to use, and is used… [more](https://github.com/verbose/verb) | [homepage](https://github.com/verbose/verb "Documentation generator for GitHub projects. Verb is extremely powerful, easy to use, and is used on hundreds of projects of all sizes to generate everything from API docs to readmes.")
 
-## Contributing
+### Contributing
 
-Pull requests and stars are always welcome. For bugs and feature requests, [please create an issue](https://github.com/doowb/async-helpers/issues/new).
+Pull requests and stars are always welcome. For bugs and feature requests, [please create an issue](../../issues/new).
 
-## Building docs
+### Contributors
 
-Generate readme and API documentation with [verb](https://github.com/verbose/verb):
+| **Commits** | **Contributor** | 
+| --- | --- |
+| 73 | [doowb](https://github.com/doowb) |
+| 21 | [jonschlinkert](https://github.com/jonschlinkert) |
+| 1 | [nknapp](https://github.com/nknapp) |
+
+### Building docs
+
+_(This document was generated by [verb-generate-readme](https://github.com/verbose/verb-generate-readme) (a [verb](https://github.com/verbose/verb) generator), please don't edit the readme directly. Any changes to the readme must be made in [.verb.md](.verb.md).)_
+
+To generate the readme and API documentation with [verb](https://github.com/verbose/verb):
 
 ```sh
-$ npm install verb && npm run docs
+$ npm install -g verb verb-generate-readme && verb
 ```
 
-Or, if [verb](https://github.com/verbose/verb) is installed globally:
-
-```sh
-$ verb
-```
-
-## Running tests
+### Running tests
 
 Install dev dependencies:
 
@@ -171,18 +175,18 @@ Install dev dependencies:
 $ npm install -d && npm test
 ```
 
-## Author
+### Author
 
 **Brian Woodward**
 
 * [github/doowb](https://github.com/doowb)
-* [twitter/doowb](http://twitter.com/doowb)
+* [twitter/doowb](https://twitter.com/doowb)
 
-## License
+### License
 
-Copyright © 2016, [Brian Woodward](https://github.com/doowb).
-Released under the [MIT license](https://github.com/doowb/async-helpers/blob/master/LICENSE).
+Copyright © 2017, [Brian Woodward](https://github.com/doowb).
+Released under the [MIT license](LICENSE).
 
 ***
 
-_This file was generated by [verb](https://github.com/verbose/verb), v0.9.0, on June 06, 2016._
+_This file was generated by [verb-generate-readme](https://github.com/verbose/verb-generate-readme), v0.4.1, on January 17, 2017._
