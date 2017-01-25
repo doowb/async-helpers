@@ -41,16 +41,7 @@ function AsyncHelpers(options) {
   this.globalCounter = AsyncHelpers.globalCounter++;
   this.helpers = {};
   this.counter = 0;
-
-  Object.defineProperty(this, 'prefixRegx', {
-    configurable: true,
-    set: function(regex) {
-      define(this, '_re', regex);
-    },
-    get: function() {
-      return this._re || (this._re = toRegex(this.prefix, 'g'));
-    }
-  });
+  this.prefixRegex = toRegex(this.prefix);
 }
 
 /**
@@ -135,10 +126,13 @@ AsyncHelpers.prototype.get = function(helper, options) {
  */
 
 AsyncHelpers.prototype.wrapHelper = function(helper, options) {
-  if (isObject(helper)) {
+  if (isObject(helper) && typeof options === 'undefined') {
     options = helper;
-    helper = null;
+    helper = this.helpers;
   }
+
+  options = options || {};
+  helper = helper || this.helpers;
 
   var type = typeOf(helper);
   switch (type) {
@@ -148,15 +142,10 @@ AsyncHelpers.prototype.wrapHelper = function(helper, options) {
       return this.wrapHelpers(helper, options);
     case 'function':
       if (isHelperGroup(helper)) {
-        helper = this.wrapHelpers(helper, options);
+        return this.wrapHelpers(helper, options);
       }
 
-      if (helper.wrapped === true) {
-        return helper;
-      }
-
-      var opts = extend({}, this.options, options);
-      if (opts.wrap) {
+      if (options.wrap && helper.wrapped !== true) {
         return this.wrapper(helper, helper, this);
       }
 
@@ -255,7 +244,20 @@ AsyncHelpers.prototype.reset = function() {
  */
 
 AsyncHelpers.prototype.matches = function(str) {
-  return str.match(this.prefixRegx);
+  if (typeof str !== 'string') {
+    throw new TypeError('AsyncHelpers#matches expects a string');
+  }
+
+  var matches = [];
+  var match;
+  var input = str;
+
+  while ((match = this.prefixRegex.exec(input))) {
+    matches.push(match[0]);
+    input = input.slice(match.index + match[0].length);
+  }
+
+  return matches;
 };
 
 /**
@@ -264,7 +266,10 @@ AsyncHelpers.prototype.matches = function(str) {
  */
 
 AsyncHelpers.prototype.hasAsyncId = function(str) {
-  return this.prefixRegx.test(str);
+  if (typeof str !== 'string') {
+    throw new TypeError('AsyncHelpers#hasAsyncId expects a string');
+  }
+  return str.indexOf(this.prefix) !== -1;
 };
 
 /**
@@ -323,10 +328,11 @@ AsyncHelpers.prototype.resolveId = function * (key) {
           return;
         }
 
-        if (self.hasAsyncId(result)) {
+        if (typeof result === 'string' && self.hasAsyncId(result)) {
           self.resolveIds(result, next);
           return;
         }
+
         next(null, result);
         return;
       };
@@ -336,7 +342,7 @@ AsyncHelpers.prototype.resolveId = function * (key) {
 
     try {
       str = helper.fn.apply(helper.context, args);
-      if (self.hasAsyncId(str)) {
+      if (typeof str === 'string' && self.hasAsyncId(str)) {
         self.resolveIds(str, next);
         return;
       }
@@ -446,6 +452,11 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
     for (var i = 0; i < matches.length; i++) {
       var key = matches[i];
       var val = yield self.resolveId(key);
+
+      if (typeof val !== 'string') {
+        throw new TypeError('AsyncHelpers#resolveIds expected val to be a string');
+      }
+
       str = str.split(key).join(val);
     }
     return str;
@@ -515,18 +526,12 @@ function createId(prefix, counter) {
  * @return {RegExp}
  */
 
-function toRegex(prefix, flags, options) {
-  var key = appendPrefix(prefix, '(\\d)+');
+function toRegex(prefix) {
+  var key = appendPrefix(prefix, '(\\d+)');
   if (cache.hasOwnProperty(key)) {
     return cache[key];
   }
-
-  if (typeof flags !== 'string') {
-    options = flags;
-    flags = undefined;
-  }
-
-  var regex = new RegExp(createRegexString(key, options), flags);
+  var regex = new RegExp(createRegexString(key));
   cache[key] = regex;
   return regex;
 }
@@ -537,16 +542,12 @@ function toRegex(prefix, flags, options) {
  * @return {String} string to pass into `RegExp`
  */
 
-function createRegexString(prefix, options) {
+function createRegexString(prefix) {
   var key = 'createRegexString:' + prefix;
   if (cache.hasOwnProperty(key)) {
     return cache[key];
   }
-  options = options || {};
-  var str = '\\' + prefix.split(/\\?\$/).join('\\$') + '(\\d)+\\$\\}';
-  if (options.strict) {
-    str = '^' + str + '$';
-  }
+  var str = (prefix + '(\\d+)$}').replace(/\\?([${}])/g, '\\$1');
   cache[key] = str;
   return str;
 }
@@ -557,13 +558,13 @@ function createRegexString(prefix, options) {
 
 function isHelperGroup(helpers) {
   if (!helpers) return false;
+  if (helpers.isGroup) {
+    return true;
+  }
   if (typeof helpers === 'function' || isObject(helpers)) {
     var len = Object.keys(helpers).length;
     var min = (helpers.async || helpers.sync) ? 1 : 0;
-    return helpers.isGroup === true || len > min;
-  }
-  if (Array.isArray(helpers)) {
-    return helpers.isGroup === true;
+    return len > min;
   }
   return false;
 }

@@ -163,7 +163,7 @@ var hbs = [
   'lower: {{lower name}}',
   'spacer: {{spacer name}}',
   'spacer-delim: {{spacer name "-"}}',
-  'lower(upper): {{lower (upper name)}}',
+  'lower(upper): {{lower (upper (lower (upper name)))}}',
   'spacer(upper, lower): {{spacer (upper name) (lower "X")}}',
   '  {{> (lower "ANOTHER-PARTIAL") }}',
   '  {{> another-partial }}',
