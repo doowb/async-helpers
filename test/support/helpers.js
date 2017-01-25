@@ -5,8 +5,16 @@ var helpers = {
     upper: function(str) {
       return str.toUpperCase();
     },
+    getPartial: function(str, options, cb) {
+      var args = [].slice.call(arguments);
+      cb = args.pop();
+      cb(null, str);
+    },
     lower: function(str, options, cb) {
       cb(null, str.toLowerCase());
+    },
+    partialName: function partialName(options, cb) {
+      cb(null, this.customName || options.hash.name)
     },
     is: function(val, options, cb) {
       cb(null, val === true);
