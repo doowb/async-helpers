@@ -549,7 +549,7 @@ function isHelperGroup(helpers) {
   if (!helpers) return false;
   if (typeof helpers === 'function' || isObject(helpers)) {
     var len = Object.keys(helpers).length;
-    var min = helpers.async ? 1 : 0;
+    var min = (helpers.async || helpers.sync) ? 1 : 0;
     return helpers.isGroup === true || len > min;
   }
   if (Array.isArray(helpers)) {
