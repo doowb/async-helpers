@@ -257,7 +257,7 @@ describe('async-helpers', function() {
       assert.deepEqual(fn('doowb'), '{$ASYNCID$0$0$}');
     });
 
-    it('should return an object of helpers when given an object of helpers', function() {
+    it.skip('should return an object of helpers when given an object of helpers', function() {
       var helpers = {
         upper: function(str) { return str.toUpperCase(); },
         lower: function(str) { return str.toLowerCase(); }
@@ -269,7 +269,7 @@ describe('async-helpers', function() {
       assert.equal(obj.lower('DOOWB'), 'doowb');
     });
 
-    it('should return an object of wrapped helpers when given an object of helpers and wrap option is true', function() {
+    it.skip('should return an object of wrapped helpers when given an object of helpers and wrap option is true', function() {
       var helpers = {
         upper: function(str) { return str.toUpperCase(); },
         lower: function(str) { return str.toLowerCase(); }

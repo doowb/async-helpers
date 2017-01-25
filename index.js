@@ -91,8 +91,8 @@ AsyncHelpers.prototype.set = function(name, fn) {
   if (typeof name !== 'string') {
     throw new TypeError('AsyncHelpers#set: expected `name` to be a string');
   }
-  if (typeof fn !== 'function') {
-    throw new TypeError('AsyncHelpers#set: expected `fn` to be a function');
+  if (typeof fn !== 'function' && !isObject(fn)) {
+    throw new TypeError('AsyncHelpers#set: expected `fn` to be a function or object');
   }
 
   this.helpers[name] = fn;
@@ -137,9 +137,8 @@ AsyncHelpers.prototype.get = function(helper, options) {
 AsyncHelpers.prototype.wrapHelper = function(helper, options) {
   if (isObject(helper)) {
     options = helper;
-    helper = this.helpers;
+    helper = null;
   }
-  helper = helper || this.helpers;
 
   var type = typeOf(helper);
   switch (type) {
@@ -179,15 +178,22 @@ AsyncHelpers.prototype.wrapHelpers = function(helpers, options) {
     throw new TypeError('expected helpers to be an object');
   }
 
+  var res = {};
   for (var key in helpers) {
     if (helpers.hasOwnProperty(key)) {
       var helper = helpers[key];
-      if (helper.wrapped !== true) {
-        helpers[key] = this.wrapHelper(key, options);
+      if (isObject(helper)) {
+        res[key] = this.wrapHelpers(helper, options);
+      } else {
+        if (helper.wrapped !== true) {
+          res[key] = this.wrapHelper(helper, options);
+        } else {
+          res[key] = helper;
+        }
       }
     }
   }
-  return helpers;
+  return res;
 };
 
 /**
@@ -430,13 +436,13 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   }
 
   var matches = this.matches(str);
-  if (!matches) {
-    cb(null, str);
-    return;
-  };
 
   var self = this;
   co(function * () {
+    if (!matches) {
+      return str;
+    };
+
     for (var i = 0; i < matches.length; i++) {
       var key = matches[i];
       var val = yield self.resolveId(key);
