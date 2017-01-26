@@ -455,11 +455,6 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
     for (var i = 0; i < matches.length; i++) {
       var key = matches[i];
       var val = yield self.resolveId(key);
-
-      if (['string', 'number', 'boolean'].indexOf(typeOf(val)) === -1) {
-        console.log(`[WARNING]: AsyncHelpers#resolveIds ${formatWarning(key, val)}`);
-      }
-
       str = str.split(key).join(val);
     }
     return str;
@@ -497,37 +492,6 @@ function formatError(err, helper, args) {
   err.helper = helper;
   err.args = args;
   return err;
-}
-
-/**
- * Format a warning message to provide better information about the
- * helper and the arguments passed to the helper when the returned results aren't
- * what's expected.
- *
- * @param  {String} `key` Helper async id used to find more information about the helper.
- * @param  {Mixed} `val` Value returned from the helper
- * @return {String} Formatted warning message
- */
-
-function formatWarning(key, val) {
-  var helper = stash[key];
-  if (!helper) {
-    return `Expected returned result to be a string, number or boolean. Instead result is typeof "${typeOf(val)}"`;
-  }
-
-  var args = helper.args.slice();
-  args = args.filter(function(arg) {
-    if (!arg || typeof arg === 'function') {
-      return false;
-    }
-    return true;
-  }).map(function(arg) {
-    return stringify(arg);
-  });
-
-  var res = `Expected the returned result from "${helper.name}" to be a string, number or boolean. Instead result is typeof "${typeOf(val)}".`;
-  // res += `\nHelper arguments: \`${args.join(', ')}\``;
-  return res;
 }
 
 /**
