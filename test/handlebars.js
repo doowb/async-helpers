@@ -21,7 +21,9 @@ var tmpl = [
   'block: {{#block}}{{upper name}}{{/block}}',
   'ifConditional1: {{#if (equals "foo" foo)}}{{upper name}}{{/if}}',
   'ifConditional2: {{#if (equals "baz" bar)}}{{upper name}}{{/if}}',
-  'useHash: {{#useHash me=(lookup this "person")}}{{me.first}} {{me.last}}{{/useHash}}'
+  'useHash: {{#useHash me=(lookup this "person")}}{{me.first}} {{me.last}}{{/useHash}}',
+  'sum: {{sum 1 2 3}}',
+  'lookup(this "person"): {{lookup this "person"}}'
 ].join('\n');
 
 describe('handlebars', function() {
@@ -45,6 +47,7 @@ describe('handlebars', function() {
     asyncHelpers.set('block', helpers.block);
     asyncHelpers.set('useHash', helpers.useHash);
     asyncHelpers.set('lookup', helpers.lookup);
+    asyncHelpers.set('sum', helpers.sum);
   });
 
   it('should work in handlebars', function(done) {
@@ -69,7 +72,7 @@ describe('handlebars', function() {
     var rendered = fn({
       name: 'doowb',
       customName: 'custom',
-      person: {first: 'Brian', last: 'Woodward'},
+      person: {first: 'Brian', last: 'Woodward', toString: function() { return this.first + ' ' + this.last; }},
       bar: 'baz'
     });
 
@@ -87,7 +90,9 @@ describe('handlebars', function() {
         'block: DOOWB',
         'ifConditional1: ',
         'ifConditional2: DOOWB',
-        'useHash: Brian Woodward'
+        'useHash: Brian Woodward',
+        'sum: 6',
+        'lookup(this "person"): Brian Woodward'
       ].join('\n'));
       done();
     });

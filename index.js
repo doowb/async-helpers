@@ -146,7 +146,7 @@ AsyncHelpers.prototype.wrapHelper = function(helper, options) {
       }
 
       if (options.wrap && helper.wrapped !== true) {
-        return this.wrapper(helper, helper, this);
+        return this.wrapper(helper.name || helper.displayName, helper, this);
       }
 
       return helper;
@@ -175,6 +175,9 @@ AsyncHelpers.prototype.wrapHelpers = function(helpers, options) {
         res[key] = this.wrapHelpers(helper, options);
       } else {
         if (helper.wrapped !== true) {
+          if (typeOf(helper) === 'function' && !helper.name && !helper.displayName) {
+            helper.displayName = key;
+          }
           res[key] = this.wrapHelper(helper, options);
         } else {
           res[key] = helper;
@@ -453,8 +456,8 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
       var key = matches[i];
       var val = yield self.resolveId(key);
 
-      if (typeof val !== 'string') {
-        throw new TypeError('AsyncHelpers#resolveIds expected val to be a string');
+      if (['string', 'number', 'boolean'].indexOf(typeOf(val)) === -1) {
+        console.log(`[WARNING]: AsyncHelpers#resolveIds ${formatWarning(key, val)}`);
       }
 
       str = str.split(key).join(val);
@@ -494,6 +497,37 @@ function formatError(err, helper, args) {
   err.helper = helper;
   err.args = args;
   return err;
+}
+
+/**
+ * Format a warning message to provide better information about the
+ * helper and the arguments passed to the helper when the returned results aren't
+ * what's expected.
+ *
+ * @param  {String} `key` Helper async id used to find more information about the helper.
+ * @param  {Mixed} `val` Value returned from the helper
+ * @return {String} Formatted warning message
+ */
+
+function formatWarning(key, val) {
+  var helper = stash[key];
+  if (!helper) {
+    return `Expected returned result to be a string, number or boolean. Instead result is typeof "${typeOf(val)}"`;
+  }
+
+  var args = helper.args.slice();
+  args = args.filter(function(arg) {
+    if (!arg || typeof arg === 'function') {
+      return false;
+    }
+    return true;
+  }).map(function(arg) {
+    return stringify(arg);
+  });
+
+  var res = `Expected the returned result from "${helper.name}" to be a string, number or boolean. Instead result is typeof "${typeOf(val)}".`;
+  // res += `\nHelper arguments: \`${args.join(', ')}\``;
+  return res;
 }
 
 /**
@@ -563,7 +597,10 @@ function isHelperGroup(helpers) {
   }
   if (typeof helpers === 'function' || isObject(helpers)) {
     var len = Object.keys(helpers).length;
-    var min = (helpers.async || helpers.sync) ? 1 : 0;
+    var min = ['async', 'sync', 'displayName'].reduce(function(acc, name) {
+      acc += (helpers[name] ? 1 : 0);
+      return acc;
+    }, 0);
     return len > min;
   }
   return false;

@@ -38,6 +38,19 @@ var helpers = {
     },
     lookup: function(obj, prop) {
       return obj[prop];
+    },
+    sum: function(arr, options) {
+      var args = [].slice.call(arguments);
+      options = args.pop();
+      var total = 0;
+      for (var i = 0; i < args.length; i++) {
+        if (Array.isArray[args[i]]) {
+          total += helpers.handlebars.sum.apply(this, args[i].concat([options]));
+        } else {
+          total += args[i];
+        }
+      }
+      return total;
     }
   },
   lodash: {
