@@ -560,12 +560,10 @@ function isHelperGroup(helpers) {
     return true;
   }
   if (typeof helpers === 'function' || isObject(helpers)) {
-    var len = Object.keys(helpers).length;
-    var min = ['async', 'sync', 'displayName'].reduce(function(acc, name) {
-      acc += (helpers[name] ? 1 : 0);
-      return acc;
-    }, 0);
-    return len > min;
+    var keys = Object.keys(helpers).filter(function(name) {
+      return ['async', 'sync', 'displayName'].indexOf(name) === -1;
+    });
+    return keys.length > 1;
   }
   return false;
 }
