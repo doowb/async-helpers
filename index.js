@@ -9,7 +9,6 @@
 
 var typeOf = require('kind-of');
 var define = require('define-property');
-var stringify = require('safe-json-stringify');
 var co = require('co');
 
 /**

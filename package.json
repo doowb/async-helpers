@@ -27,8 +27,7 @@
   "dependencies": {
     "co": "^4.6.0",
     "define-property": "^1.0.0",
-    "kind-of": "^6.0.0",
-    "safe-json-stringify": "^1.0.4"
+    "kind-of": "^6.0.0"
   },
   "devDependencies": {
     "async": "^2.5.0",
