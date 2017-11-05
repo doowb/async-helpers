@@ -1,6 +1,5 @@
 'use strict';
 
-var extend = require('extend-shallow');
 var AsyncHelpers = require('..');
 
 // create a new instance of AsyncHelpers
@@ -47,7 +46,7 @@ function partialName(name, options) {
 function invokePartialWrapper(partial, context, options) {
   var env = Handlebars;
   if (options.hash) {
-    context = extend({}, context, options.hash);
+    context = Object.assign({}, context, options.hash);
     if (options.ids) {
       options.ids[0] = true;
     }
