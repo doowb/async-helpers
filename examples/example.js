@@ -1,7 +1,7 @@
 'use strict';
 
-var AsyncHelpers = require('./');
 var extend = require('extend-shallow');
+var AsyncHelpers = require('..');
 
 // create a new instance of AsyncHelpers
 var asyncHelpers = new AsyncHelpers();

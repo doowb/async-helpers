@@ -4,14 +4,18 @@
   "version": "0.3.14",
   "homepage": "https://github.com/doowb/async-helpers",
   "author": "Brian Woodward (https://github.com/doowb)",
+  "contributors": [
+    "Brian Woodward (https://twitter.com/doowb)",
+    "Jon Schlinkert (http://twitter.com/jonschlinkert)",
+    "Nils Knappmeier (https://blog.knappi.org)"
+  ],
   "repository": "doowb/async-helpers",
   "bugs": {
     "url": "https://github.com/doowb/async-helpers/issues"
   },
   "license": "MIT",
   "files": [
-    "index.js",
-    "utils.js"
+    "index.js"
   ],
   "main": "index.js",
   "engines": {
@@ -60,9 +64,9 @@
     "related": {
       "list": [
         "assemble",
-        "co",
         "generate",
         "templates",
+        "update",
         "verb"
       ]
     },
