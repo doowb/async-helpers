@@ -8,9 +8,8 @@
 'use strict';
 
 var typeOf = require('kind-of');
-var stringify = require('safe-json-stringify');
 var define = require('define-property');
-var extend = require('extend-shallow');
+var stringify = require('safe-json-stringify');
 var co = require('co');
 
 /**
@@ -36,7 +35,7 @@ function AsyncHelpers(options) {
   if (!(this instanceof AsyncHelpers)) {
     return new AsyncHelpers(options);
   }
-  this.options = extend({}, options);
+  this.options = Object.assign({}, options);
   this.prefix = this.options.prefix || '{$ASYNCID$';
   this.globalCounter = AsyncHelpers.globalCounter++;
   this.helpers = {};
@@ -71,10 +70,10 @@ AsyncHelpers.stash = stash;
 
 AsyncHelpers.prototype.set = function(name, fn) {
   if (isObject(name)) {
-    for (var key in name) {
-      if (name.hasOwnProperty(key)) {
-        this.set(key, name[key]);
-      }
+    var keys = Object.keys(name);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      this.set(key, name[key]);
     }
     return this;
   }
@@ -107,7 +106,7 @@ AsyncHelpers.prototype.set = function(name, fn) {
 
 AsyncHelpers.prototype.get = function(helper, options) {
   if (typeof helper === 'string') {
-    return this.wrapHelper(helper, options);
+    return this.wrapHelper.apply(this, arguments);
   }
   return this.wrapHelpers(this.helpers, helper);
 };
@@ -144,11 +143,9 @@ AsyncHelpers.prototype.wrapHelper = function(helper, options) {
       if (isHelperGroup(helper)) {
         return this.wrapHelpers(helper, options);
       }
-
       if (options.wrap && helper.wrapped !== true) {
         return this.wrapper(helper.name || helper.displayName, helper, this);
       }
-
       return helper;
     default: {
       throw new TypeError('AsyncHelpers.wrapHelper: unsupported type: ' + type);
@@ -168,20 +165,20 @@ AsyncHelpers.prototype.wrapHelpers = function(helpers, options) {
   }
 
   var res = {};
-  for (var key in helpers) {
-    if (helpers.hasOwnProperty(key)) {
-      var helper = helpers[key];
-      if (isObject(helper)) {
-        res[key] = this.wrapHelpers(helper, options);
-      } else {
-        if (helper.wrapped !== true) {
-          if (typeOf(helper) === 'function' && !helper.name && !helper.displayName) {
-            helper.displayName = key;
-          }
-          res[key] = this.wrapHelper(helper, options);
-        } else {
-          res[key] = helper;
+  var keys = Object.keys(helpers);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    var helper = helpers[key];
+    if (isObject(helper)) {
+      res[key] = this.wrapHelpers(helper, options);
+    } else {
+      if (helper.wrapped !== true) {
+        if (typeOf(helper) === 'function' && !helper.name && !helper.displayName) {
+          helper.displayName = key;
         }
+        res[key] = this.wrapHelper(helper, options);
+      } else {
+        res[key] = helper;
       }
     }
   }
@@ -250,17 +247,7 @@ AsyncHelpers.prototype.matches = function(str) {
   if (typeof str !== 'string') {
     throw new TypeError('AsyncHelpers#matches expects a string');
   }
-
-  var matches = [];
-  var match;
-  var input = str;
-
-  while ((match = this.prefixRegex.exec(input))) {
-    matches.push(match[0]);
-    input = input.slice(match.index + match[0].length);
-  }
-
-  return matches;
+  return str.match(this.prefixRegex);
 };
 
 /**
@@ -445,8 +432,8 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
   }
 
   var matches = this.matches(str);
-
   var self = this;
+
   co(function * () {
     if (!matches) {
       return str;
@@ -459,9 +446,7 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
     }
     return str;
   })
-  .then(function(res) {
-    cb(null, res);
-  })
+  .then((res) => cb(null, res))
   .catch(cb);
 };
 
@@ -476,21 +461,8 @@ AsyncHelpers.prototype.resolveIds = function(str, cb) {
  */
 
 function formatError(err, helper, args) {
-  args = args.filter(function(arg) {
-    if (!arg || typeof arg === 'function') {
-      return false;
-    }
-    return true;
-  }).map(function(arg) {
-    return stringify(arg);
-  });
-
-  err.reason = '"' + helper.name
-    + '" helper cannot resolve: `'
-    + args.join(', ') + '`';
-
   err.helper = helper;
-  err.args = args;
+  define(err, 'args', args);
   return err;
 }
 
@@ -529,7 +501,7 @@ function toRegex(prefix) {
   if (cache.hasOwnProperty(key)) {
     return cache[key];
   }
-  var regex = new RegExp(createRegexString(key));
+  var regex = new RegExp(createRegexString(key), 'g');
   cache[key] = regex;
   return regex;
 }
@@ -560,10 +532,13 @@ function isHelperGroup(helpers) {
     return true;
   }
   if (typeof helpers === 'function' || isObject(helpers)) {
-    var keys = Object.keys(helpers).filter(function(name) {
-      return ['async', 'sync', 'displayName'].indexOf(name) === -1;
-    });
-    return keys.length > 1;
+    var keys = Object.keys(helpers);
+    for (var i = 0; i < keys.length; i++) {
+      var name = keys[i];
+      if (name !== 'async' && name !== 'sync' && name !== 'displayName') {
+        return true;
+      }
+    }
   }
   return false;
 }
