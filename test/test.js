@@ -153,7 +153,7 @@ describe('async-helpers', function() {
       var id = helper('doowb');
       return co(asyncHelpers3.resolveId(id))
         .then(function(val) {
-          throw new Error('expected an error');
+          return Promise.reject(new Error('expected an error'));
         })
         .catch(function(err) {
           assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`');
@@ -171,7 +171,7 @@ describe('async-helpers', function() {
       var id = helper('doowb');
       return co(asyncHelpers3.resolveId(id))
         .then(function(val) {
-          throw new Error('expected an error');
+          return Promise.reject(new Error('expected an error'));
         })
         .catch(function(err) {
           assert(err.hasOwnProperty('helper'), 'Expected a `helper` property on `err`');
@@ -257,7 +257,7 @@ describe('async-helpers', function() {
       assert.deepEqual(fn('doowb'), '{$ASYNCID$0$0$}');
     });
 
-    it.skip('should return an object of helpers when given an object of helpers', function() {
+    it('should return an object of helpers when given an object of helpers', function() {
       var helpers = {
         upper: function(str) { return str.toUpperCase(); },
         lower: function(str) { return str.toLowerCase(); }
@@ -269,7 +269,7 @@ describe('async-helpers', function() {
       assert.equal(obj.lower('DOOWB'), 'doowb');
     });
 
-    it.skip('should return an object of wrapped helpers when given an object of helpers and wrap option is true', function() {
+    it('should return an object of wrapped helpers when given an object of helpers and wrap option is true', function() {
       var helpers = {
         upper: function(str) { return str.toUpperCase(); },
         lower: function(str) { return str.toLowerCase(); }
@@ -288,7 +288,6 @@ describe('async-helpers', function() {
       helpers.lower = function(str) { return str.toLowerCase(); };
       asyncHelpers.set('my-group', helpers);
       var res = asyncHelpers.wrapHelper('my-group');
-      console.log(res);
       assert.deepEqual(res, helpers);
       assert.equal(res.upper('doowb'), 'DOOWB');
       assert.equal(res.lower('DOOWB'), 'doowb');
