@@ -8,7 +8,6 @@
 'use strict';
 
 var typeOf = require('kind-of');
-var define = require('define-property');
 var co = require('co');
 
 /**
@@ -188,7 +187,6 @@ AsyncHelpers.prototype.wrapHelpers = function(helpers, options) {
  * Returns a wrapper function for a single helper.
  * @param  {String} `name` The name of the helper
  * @param  {Function} `fn` The actual helper function
- * @param  {Object} `context` Context
  * @return {String} Returns an async ID to use for resolving the value. ex: `{$ASYNCID$!$8$}`
  */
 
@@ -545,6 +543,14 @@ function isHelperGroup(helpers) {
 
 function isObject(val) {
   return typeOf(val) === 'object';
+}
+
+function define(obj, key, val) {
+  Object.defineProperty(obj, key, {
+    configurable: true,
+    enumerable: false,
+    value: val
+  });
 }
 
 /**
